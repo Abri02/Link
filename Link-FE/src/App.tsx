@@ -1,75 +1,180 @@
-import { Hash, MessageSquare, Users, Settings, Send } from "lucide-react";
+import { Hash, Send } from "lucide-react";
+import {
+  Box,
+  Flex,
+  HStack,
+  Heading,
+  IconButton,
+  Input,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
 
 export default function App() {
   return (
-    <div className="flex h-screen w-full bg-white text-slate-900 font-sans">
+    <Flex h="100vh" w="100%" bg="white" color="slate.900">
       {/* 1. Workspace Sidebar (Narrow) */}
-      <nav className="w-16 bg-slate-900 flex flex-col items-center py-4 gap-4 text-white">
-        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-bold">
+      <VStack
+        as="nav"
+        w="64px"
+        bg="slate.900"
+        py={4}
+        gap={4}
+        color="white"
+        align="center"
+      >
+        <Flex
+          w="40px"
+          h="40px"
+          bg="indigo.600"
+          rounded="lg"
+          align="center"
+          justify="center"
+          fontWeight="bold"
+        >
           L
-        </div>
-        <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-600 cursor-pointer">
+        </Flex>
+        <Flex
+          w="40px"
+          h="40px"
+          bg="slate.700"
+          rounded="lg"
+          align="center"
+          justify="center"
+          cursor="pointer"
+          _hover={{ bg: "slate.600" }}
+        >
           +
-        </div>
-      </nav>
+        </Flex>
+      </VStack>
 
       {/* 2. Channel Sidebar */}
-      <aside className="w-64 bg-slate-800 text-slate-300 flex flex-col">
-        <header className="p-4 border-b border-slate-700 flex justify-between items-center text-white">
-          <h1 className="font-bold text-lg">Link Workspace</h1>
-        </header>
-        <div className="flex-1 overflow-y-auto p-2">
-          <div className="mb-4">
-            <h3 className="px-2 text-xs font-semibold uppercase tracking-wider mb-2">
+      <Flex
+        as="aside"
+        w="256px"
+        bg="slate.800"
+        color="slate.300"
+        direction="column"
+      >
+        <Flex
+          as="header"
+          p={4}
+          borderBottomWidth="1px"
+          borderColor="slate.700"
+          justify="space-between"
+          align="center"
+          color="white"
+        >
+          <Heading size="md" fontWeight="bold">
+            Link Workspace
+          </Heading>
+        </Flex>
+        <Box flex="1" overflowY="auto" p={2}>
+          <Box mb={4}>
+            <Heading
+              as="h3"
+              px={2}
+              fontSize="xs"
+              fontWeight="semibold"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              mb={2}
+            >
               Channels
-            </h3>
-            <button className="flex items-center gap-2 w-full px-2 py-1 rounded hover:bg-slate-700 text-white bg-slate-700">
-              <Hash size={18} /> general
-            </button>
-            <button className="flex items-center gap-2 w-full px-2 py-1 rounded hover:bg-slate-700">
-              <Hash size={18} /> development
-            </button>
-          </div>
-        </div>
-      </aside>
+            </Heading>
+            <HStack
+              as="button"
+              w="100%"
+              px={2}
+              py={1}
+              rounded="md"
+              bg="slate.700"
+              color="white"
+              gap={2}
+              _hover={{ bg: "slate.700" }}
+            >
+              <Hash size={18} />
+              <Text>general</Text>
+            </HStack>
+            <HStack
+              as="button"
+              w="100%"
+              px={2}
+              py={1}
+              rounded="md"
+              gap={2}
+              _hover={{ bg: "slate.700" }}
+            >
+              <Hash size={18} />
+              <Text>development</Text>
+            </HStack>
+          </Box>
+        </Box>
+      </Flex>
 
       {/* 3. Main Chat Area */}
-      <main className="flex-1 flex flex-col">
-        <header className="h-14 border-b flex items-center px-6 justify-between">
-          <div className="flex items-center gap-2">
-            <Hash size={20} className="text-slate-500" />
-            <span className="font-bold">general</span>
-          </div>
-        </header>
+      <Flex as="main" flex="1" direction="column">
+        <Flex
+          as="header"
+          h="56px"
+          borderBottomWidth="1px"
+          align="center"
+          px={6}
+          justify="space-between"
+        >
+          <HStack gap={2}>
+            <Box color="slate.500">
+              <Hash size={20} />
+            </Box>
+            <Text fontWeight="bold">general</Text>
+          </HStack>
+        </Flex>
 
-        <div className="flex-1 p-6 overflow-y-auto">
-          {/* Messages will go here */}
-          <div className="flex gap-4 mb-6">
-            <div className="w-10 h-10 bg-slate-200 rounded shrink-0"></div>
-            <div>
-              <span className="font-bold mr-2">John Doe</span>
-              <span className="text-xs text-slate-500">10:30 PM</span>
-              <p className="text-slate-700">
+        <Box flex="1" p={6} overflowY="auto">
+          <HStack gap={4} mb={6} align="flex-start">
+            <Box w="40px" h="40px" bg="slate.200" rounded="md" flexShrink={0} />
+            <Box>
+              <HStack gap={2} mb={1}>
+                <Text fontWeight="bold">John Doe</Text>
+                <Text fontSize="xs" color="slate.500">
+                  10:30 PM
+                </Text>
+              </HStack>
+              <Text color="slate.700">
                 Welcome to Link! This is our first message.
-              </p>
-            </div>
-          </div>
-        </div>
+              </Text>
+            </Box>
+          </HStack>
+        </Box>
 
         {/* Input Area */}
-        <footer className="p-4">
-          <div className="border-2 border-slate-200 rounded-lg p-2 flex items-center">
-            <input
-              type="text"
+        <Box as="footer" p={4}>
+          <Flex
+            borderWidth="2px"
+            borderColor="slate.200"
+            rounded="lg"
+            p={2}
+            align="center"
+          >
+            <Input
               placeholder="Message #general"
-              className="flex-1 outline-none px-2"
+              variant="outline"
+              border="none"
+              _focus={{ boxShadow: "none" }}
+              flex="1"
+              px={2}
             />
-            <button className="p-2 hover:bg-slate-100 rounded">
-              <Send size={20} className="text-slate-500" />
-            </button>
-          </div>
-        </footer>
-      </main>
-    </div>
+            <IconButton
+              aria-label="Send message"
+              variant="ghost"
+              size="sm"
+              color="slate.500"
+            >
+              <Send size={20} />
+            </IconButton>
+          </Flex>
+        </Box>
+      </Flex>
+    </Flex>
   );
 }
