@@ -1,0 +1,493 @@
+{
+  "info": {
+    "name": "Link — Auth Service",
+    "_postman_id": "link-auth-collection-v1",
+    "description": "Tests for POST /auth/signup and POST /auth/login on auth-service (port 8081).\n\nPrerequisite: Postgres running via docker compose, AuthServiceApplication started in IntelliJ.\n\nBase URL: http://localhost:8081",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Signup",
+      "item": [
+        {
+          "name": "Signup — happy path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('LINK_SESSION cookie is set', () => {",
+                  "    const header = pm.response.headers.get('Set-Cookie') || '';",
+                  "    pm.expect(header).to.include('LINK_SESSION');",
+                  "});",
+                  "",
+                  "pm.test('LINK_SESSION is HttpOnly', () => {",
+                  "    const header = pm.response.headers.get('Set-Cookie') || '';",
+                  "    pm.expect(header).to.include('HttpOnly');",
+                  "});",
+                  "",
+                  "pm.test('LINK_REFRESH cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const hasRefresh = cookies.some(c => c.includes('LINK_REFRESH'));",
+                  "    pm.expect(hasRefresh).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('LINK_REFRESH path is /api/auth/refresh', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const refresh = cookies.find(c => c.includes('LINK_REFRESH'));",
+                  "    pm.expect(refresh).to.include('Path=/api/auth/refresh');",
+                  "});",
+                  "",
+                  "pm.test('Response body is empty', () => {",
+                  "    pm.expect(pm.response.text()).to.equal('');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"username\": \"alice\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signup — with displayName",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bob@example.com\",\n  \"username\": \"bob\",\n  \"password\": \"hunter12345\",\n  \"displayName\": \"Bob Smith\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signup — duplicate email → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409 Conflict', () => {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions email', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('Email');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"username\": \"alice2\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            },
+            "description": "Same email as the happy-path signup. Run that one first."
+          }
+        },
+        {
+          "name": "Signup — duplicate username → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409 Conflict', () => {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions username', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.include('Username');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"different@example.com\",\n  \"username\": \"alice\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            },
+            "description": "Different email, same username as the happy-path signup."
+          }
+        },
+        {
+          "name": "Signup — invalid email → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions email', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message.toLowerCase()).to.include('email');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"username\": \"charlie\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signup — password too short → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions password', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message.toLowerCase()).to.include('password');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"charlie@example.com\",\n  \"username\": \"charlie\",\n  \"password\": \"short\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "Signup — username too short → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions username', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message.toLowerCase()).to.include('username');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"charlie@example.com\",\n  \"username\": \"ab\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "signup"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "item": [
+        {
+          "name": "Login — happy path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('LINK_SESSION cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const hasSession = cookies.some(c => c.includes('LINK_SESSION'));",
+                  "    pm.expect(hasSession).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('LINK_REFRESH cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const hasRefresh = cookies.some(c => c.includes('LINK_REFRESH'));",
+                  "    pm.expect(hasRefresh).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Response body is empty', () => {",
+                  "    pm.expect(pm.response.text()).to.equal('');",
+                  "});",
+                  "",
+                  "// Extract the JWT from the Set-Cookie header and save it as an env variable",
+                  "// so you can paste it into jwt.io manually if you want to inspect claims.",
+                  "const sessionHeader = pm.response.headers.all()",
+                  "    .filter(h => h.key === 'Set-Cookie')",
+                  "    .map(h => h.value)",
+                  "    .find(c => c.startsWith('LINK_SESSION='));",
+                  "",
+                  "if (sessionHeader) {",
+                  "    const jwt = sessionHeader.split('=')[1].split(';')[0];",
+                  "    pm.collectionVariables.set('last_jwt', jwt);",
+                  "    console.log('JWT saved to collection variable last_jwt');",
+                  "    console.log('Paste this into jwt.io to inspect claims:');",
+                  "    console.log(jwt);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Run 'Signup — happy path' first to create the alice account."
+          }
+        },
+        {
+          "name": "Login — wrong password → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message is generic (no hint about which field was wrong)', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.equal('Invalid credentials');",
+                  "});",
+                  "",
+                  "pm.test('No Set-Cookie header on failure', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie');",
+                  "    pm.expect(cookies.length).to.equal(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login — email not registered → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Same generic message as wrong password (no user enumeration)', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.equal('Invalid credentials');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody@example.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "JWT Inspect (manual)",
+      "item": [
+        {
+          "name": "README — how to decode the JWT",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "After running 'Login — happy path', the test script saves the JWT into the collection variable 'last_jwt'.\n\nTo inspect its contents:\n1. Open Postman → collection variables → copy the value of 'last_jwt'\n2. Go to https://jwt.io\n3. Paste into the 'Encoded' box on the left\n4. The decoded payload on the right will show:\n   {\n     \"sub\": \"1\",              ← user ID in our DB\n     \"email\": \"alice@example.com\",\n     \"username\": \"alice\",\n     \"roles\": [\"ROLE_USER\"],\n     \"iss\": \"link\",\n     \"iat\": 1714950000,       ← issued at (Unix timestamp)\n     \"exp\": 1714950900,       ← expires at (iat + 900 seconds)\n     \"jti\": \"c2a1b3d4-...\"   ← unique token ID\n   }\n\nThe signature will show 'Invalid Signature' on jwt.io because it needs the RSA public key.\nThat is expected and correct — the key is not public."
+          }
+        }
+      ]
+    }
+  ]
+}
