@@ -12,7 +12,7 @@ const routes: RouteConfig[] = [
   {
     path: "/login",
     component: lazy(() =>
-      import("./feature/LoginPage").then((m) => ({ default: m.LoginPage }))
+      import("./feature/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage }))
     ),
   },
   {
