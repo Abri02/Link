@@ -16,7 +16,12 @@ class SecurityConfig {
         http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { it.anyRequest().permitAll() }
+            .authorizeHttpRequests { auth ->
+                auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
+                auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                auth.anyRequest().authenticated()
+            }
+            .oauth2ResourceServer { oauth2 -> oauth2.jwt { } }
         return http.build()
     }
 }

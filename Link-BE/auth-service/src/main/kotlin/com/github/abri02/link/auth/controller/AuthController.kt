@@ -10,7 +10,12 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.CookieValue
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -35,6 +40,7 @@ data class LoginRequest(
 )
 
 data class ErrorResponse(val message: String)
+data class MeResponse(val id: Long, val email: String, val username: String)
 
 // ---------- controller ----------
 
@@ -92,6 +98,72 @@ class AuthController(
             .headers(mintAndStoreCookies(user))
             .build<Void>()
     }
+
+    @PostMapping("/refresh")
+    @Transactional
+    fun refresh(
+        @CookieValue(name = "LINK_REFRESH", required = false) rawRefresh: String?
+    ): ResponseEntity<*> {
+        if (rawRefresh == null)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("No refresh token"))
+
+        val hash = sha256(rawRefresh)
+        val stored = tokens.findByTokenHash(hash)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("Invalid refresh token"))
+
+        if (stored.revokedAt != null)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("Refresh token revoked"))
+        if (stored.expiresAt.isBefore(Instant.now()))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("Refresh token expired"))
+
+        val user = users.findById(stored.userId).orElse(null)
+            ?: return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ErrorResponse("User not found"))
+
+        // Revoke the consumed token — each refresh token is single-use (rotation).
+        // If an attacker steals a refresh token and uses it first, the real user's
+        // next refresh will fail (token already revoked), signalling a possible theft.
+        stored.revokedAt = Instant.now()
+        tokens.save(stored)
+
+        return ResponseEntity.noContent()
+            .headers(mintAndStoreCookies(user))
+            .build<Void>()
+    }
+
+    @PostMapping("/logout")
+    fun logout(
+        @CookieValue(name = "LINK_REFRESH", required = false) rawRefresh: String?
+    ): ResponseEntity<Void> {
+        if (rawRefresh != null) {
+            val hash = sha256(rawRefresh)
+            tokens.findByTokenHash(hash)?.let { token ->
+                if (token.revokedAt == null) {
+                    token.revokedAt = Instant.now()
+                    tokens.save(token)
+                }
+            }
+        }
+
+        val clearSession = ResponseCookie.from("LINK_SESSION", "")
+            .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(0).build()
+        val clearRefresh = ResponseCookie.from("LINK_REFRESH", "")
+            .httpOnly(true).secure(false).sameSite("Strict").path("/api/auth/refresh").maxAge(0).build()
+
+        return ResponseEntity.noContent()
+            .header(HttpHeaders.SET_COOKIE, clearSession.toString())
+            .header(HttpHeaders.SET_COOKIE, clearRefresh.toString())
+            .build()
+    }
+
+    @GetMapping("/me")
+    fun me(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<MeResponse> =
+        ResponseEntity.ok(
+            MeResponse(
+                id = jwt.subject.toLong(),
+                email = jwt.getClaim(Claims.EMAIL),
+                username = jwt.getClaim(Claims.USERNAME)
+            )
+        )
 
     // ----- helpers -----
 
