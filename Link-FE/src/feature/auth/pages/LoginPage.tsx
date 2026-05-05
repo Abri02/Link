@@ -1,5 +1,9 @@
-import { Text } from "@chakra-ui/react";
+import { LoginBox } from "../components/LoginBox";
 
 export function LoginPage() {
-  return <Text>Teszt oldal</Text>;
+  return (
+    <>
+      <LoginBox />;
+    </>
+  );
 }
