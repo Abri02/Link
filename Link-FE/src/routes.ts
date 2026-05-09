@@ -16,6 +16,12 @@ const routes: RouteConfig[] = [
     ),
   },
   {
+    path: "/signup",
+    component: lazy(() =>
+      import("./feature/auth/pages/RegisterPage").then((m) => ({ default: m.RegisterPage }))
+    ),
+  },
+  {
     path: "/",
     component: lazy(() =>
       import("./feature/HomePage").then((m) => ({ default: m.HomePage }))

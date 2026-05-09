@@ -8,5 +8,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   });
 
   if (!response.ok) throw new Error('Network response was not ok');
+  const contentType = response.headers.get('content-type');
+  if (response.status === 204 || !contentType?.includes('application/json')) return;
   return response.json();
 };
