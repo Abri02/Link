@@ -15,7 +15,14 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     throw new Error("Invalid email or password");
   }
 
-  if (!response.ok) throw new Error('Network response was not ok');
+  if (!response.ok) {
+    const ct = response.headers.get("content-type");
+    if (ct?.includes("application/json")) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body?.message ?? `Request failed with status ${response.status}`);
+    }
+    throw new Error(`Request failed with status ${response.status}`);
+  }
   const contentType = response.headers.get('content-type');
   if (response.status === 204 || !contentType?.includes('application/json')) return;
   return response.json();
