@@ -1,0 +1,131 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: link
+          POSTGRES_USER: link
+          POSTGRES_PASSWORD: link
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Java ──────────────────────────────────────────────────────────
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: "24"
+          distribution: temurin
+          cache: gradle
+
+      # ── Node ──────────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: Link-FE/package-lock.json
+
+      # ── Playwright browser cache ───────────────────────────────────────
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('Link-FE/package-lock.json') }}
+
+      # ── Database schema ───────────────────────────────────────────────
+      - name: Apply DB schema
+        run: psql -h localhost -U link -d link -f infra/postgres/init.sql
+        env:
+          PGPASSWORD: link
+
+      # ── Backend ───────────────────────────────────────────────────────
+      - name: Build backend (skip tests)
+        working-directory: Link-BE
+        run: ./gradlew :auth-service:bootJar :gateway:bootJar -x test --no-daemon
+
+      - name: Start auth-service
+        run: |
+          # Exclude the -plain.jar (non-executable) that Spring Boot also produces
+          JAR=$(find Link-BE/auth-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          echo "Starting auth-service: $JAR"
+          java -jar "$JAR" >> /tmp/auth-service.log 2>&1 &
+          echo $! > /tmp/auth-service.pid
+
+      - name: Start gateway
+        run: |
+          JAR=$(find Link-BE/gateway/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          echo "Starting gateway: $JAR"
+          java -jar "$JAR" >> /tmp/gateway.log 2>&1 &
+          echo $! > /tmp/gateway.pid
+
+      - name: Wait for gateway to accept connections
+        run: |
+          echo "Waiting for gateway on :8080 (up to 120 s)..."
+          for i in $(seq 1 40); do
+            if nc -z localhost 8080 2>/dev/null; then
+              echo "Gateway is up after $((i * 3)) s."
+              exit 0
+            fi
+            echo "  [${i}/40] not ready yet..."
+            sleep 3
+          done
+          echo "::error::Gateway did not start within 120 s. Dumping logs:"
+          echo "=== auth-service ===" && cat /tmp/auth-service.log || true
+          echo "=== gateway ===" && cat /tmp/gateway.log || true
+          exit 1
+
+      # ── Frontend & tests ──────────────────────────────────────────────
+      - name: Install frontend dependencies
+        working-directory: Link-FE
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: Link-FE
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Playwright system dependencies (cache hit)
+        working-directory: Link-FE
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Run E2E tests
+        working-directory: Link-FE
+        run: npx playwright test
+
+      # ── Artifacts ─────────────────────────────────────────────────────
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: Link-FE/playwright-report/
+          retention-days: 14
+
+      - name: Upload service logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: service-logs
+          path: /tmp/*.log
+          retention-days: 3
