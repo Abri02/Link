@@ -2,7 +2,7 @@
   "info": {
     "name": "Link — Auth Service",
     "_postman_id": "link-auth-collection-v1",
-    "description": "Tests for POST /auth/signup and POST /auth/login on auth-service (port 8081).\n\nPrerequisite: Postgres running via docker compose, AuthServiceApplication started in IntelliJ.\n\nBase URL: http://localhost:8081",
+    "description": "Tests for all auth-service endpoints.\n\nTwo base URLs:\n  base_url         = http://localhost:8081  (auth-service directly, Days 1–4)\n  gateway_base_url = http://localhost:8080  (via gateway, Day 5+)\n\nPrerequisite: Postgres running via docker compose, AuthServiceApplication started in IntelliJ.\nFor gateway tests: GatewayApplication must also be running.\n\nTypical run order (direct):\n  1. Signup — happy path\n  2. Login — happy path  (saves last_jwt + last_refresh)\n  3. Me — happy path     (uses last_jwt)\n  4. Refresh — happy path (uses last_refresh, rotates tokens)\n  5. Logout — happy path  (uses last_refresh, clears cookies)\n\nFor end-to-end gateway smoke test run the 'Via Gateway' folder.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,6 +10,24 @@
       "key": "base_url",
       "value": "http://localhost:8081",
       "type": "string"
+    },
+    {
+      "key": "gateway_base_url",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "Gateway address. All frontend traffic goes through here in production."
+    },
+    {
+      "key": "last_jwt",
+      "value": "",
+      "type": "string",
+      "description": "Set automatically by Login / Refresh happy-path test scripts."
+    },
+    {
+      "key": "last_refresh",
+      "value": "",
+      "type": "string",
+      "description": "Set automatically by Login / Refresh happy-path test scripts."
     }
   ],
   "item": [
@@ -347,8 +365,7 @@
                   "    pm.expect(pm.response.text()).to.equal('');",
                   "});",
                   "",
-                  "// Extract the JWT from the Set-Cookie header and save it as an env variable",
-                  "// so you can paste it into jwt.io manually if you want to inspect claims.",
+                  "// Save the JWT so the Me and Refresh requests can use it.",
                   "const sessionHeader = pm.response.headers.all()",
                   "    .filter(h => h.key === 'Set-Cookie')",
                   "    .map(h => h.value)",
@@ -357,9 +374,19 @@
                   "if (sessionHeader) {",
                   "    const jwt = sessionHeader.split('=')[1].split(';')[0];",
                   "    pm.collectionVariables.set('last_jwt', jwt);",
-                  "    console.log('JWT saved to collection variable last_jwt');",
-                  "    console.log('Paste this into jwt.io to inspect claims:');",
-                  "    console.log(jwt);",
+                  "    console.log('JWT saved → collection variable last_jwt');",
+                  "}",
+                  "",
+                  "// Save the refresh token so the Refresh and Logout requests can use it.",
+                  "const refreshHeader = pm.response.headers.all()",
+                  "    .filter(h => h.key === 'Set-Cookie')",
+                  "    .map(h => h.value)",
+                  "    .find(c => c.startsWith('LINK_REFRESH='));",
+                  "",
+                  "if (refreshHeader) {",
+                  "    const refresh = refreshHeader.split('=')[1].split(';')[0];",
+                  "    pm.collectionVariables.set('last_refresh', refresh);",
+                  "    console.log('Refresh token saved → collection variable last_refresh');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -383,7 +410,7 @@
               "host": ["{{base_url}}"],
               "path": ["auth", "login"]
             },
-            "description": "Run 'Signup — happy path' first to create the alice account."
+            "description": "Run 'Signup — happy path' first to create the alice account.\n\nOn success, saves last_jwt and last_refresh to collection variables for use by Me, Refresh, and Logout."
           }
         },
         {
@@ -468,6 +495,525 @@
               "host": ["{{base_url}}"],
               "path": ["auth", "login"]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me",
+      "item": [
+        {
+          "name": "Me — happy path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Body has id, email, username', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('username');",
+                  "});",
+                  "",
+                  "pm.test('id is a number', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.id).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('email matches alice', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.email).to.equal('alice@example.com');",
+                  "});",
+                  "",
+                  "pm.test('username matches alice', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.username).to.equal('alice');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{last_jwt}}",
+                "description": "Populated automatically by 'Login — happy path'."
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Run 'Login — happy path' first — it saves the JWT into last_jwt.\n\nIn production the gateway adds this header automatically from the LINK_SESSION cookie. In local dev we pass it manually."
+          }
+        },
+        {
+          "name": "Me — no token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "No Authorization header — Spring Security's resource server filter rejects the request before it reaches the controller."
+          }
+        },
+        {
+          "name": "Me — tampered token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5OTkifQ.invalidsignature"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "A JWT with an invalid signature — the RSA signature check fails and Spring returns 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refresh",
+      "item": [
+        {
+          "name": "Refresh — happy path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('New LINK_SESSION cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const hasSession = cookies.some(c => c.includes('LINK_SESSION'));",
+                  "    pm.expect(hasSession).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('New LINK_REFRESH cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const hasRefresh = cookies.some(c => c.includes('LINK_REFRESH'));",
+                  "    pm.expect(hasRefresh).to.be.true;",
+                  "});",
+                  "",
+                  "// Rotate the saved tokens so subsequent requests use the new ones.",
+                  "const sessionHeader = pm.response.headers.all()",
+                  "    .filter(h => h.key === 'Set-Cookie')",
+                  "    .map(h => h.value)",
+                  "    .find(c => c.startsWith('LINK_SESSION='));",
+                  "",
+                  "if (sessionHeader) {",
+                  "    const jwt = sessionHeader.split('=')[1].split(';')[0];",
+                  "    pm.collectionVariables.set('last_jwt', jwt);",
+                  "    console.log('New JWT saved → last_jwt');",
+                  "}",
+                  "",
+                  "const refreshHeader = pm.response.headers.all()",
+                  "    .filter(h => h.key === 'Set-Cookie')",
+                  "    .map(h => h.value)",
+                  "    .find(c => c.startsWith('LINK_REFRESH='));",
+                  "",
+                  "if (refreshHeader) {",
+                  "    const refresh = refreshHeader.split('=')[1].split(';')[0];",
+                  "    pm.collectionVariables.set('last_refresh', refresh);",
+                  "    console.log('New refresh token saved → last_refresh');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "LINK_REFRESH={{last_refresh}}",
+                "description": "Populated automatically by 'Login — happy path'."
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Run 'Login — happy path' first — it saves the refresh token into last_refresh.\n\nOn success, both last_jwt and last_refresh are updated with the newly issued tokens. The old refresh token is revoked (single-use / rotation)."
+          }
+        },
+        {
+          "name": "Refresh — no cookie → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions missing token', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.equal('No refresh token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Refresh — invalid token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions invalid token', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.message).to.equal('Invalid refresh token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "LINK_REFRESH=not-a-real-token"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "item": [
+        {
+          "name": "Logout — happy path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('LINK_SESSION cookie is cleared (Max-Age=0)', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const session = cookies.find(c => c.includes('LINK_SESSION'));",
+                  "    pm.expect(session).to.include('Max-Age=0');",
+                  "});",
+                  "",
+                  "pm.test('LINK_REFRESH cookie is cleared (Max-Age=0)', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    const refresh = cookies.find(c => c.includes('LINK_REFRESH'));",
+                  "    pm.expect(refresh).to.include('Max-Age=0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "LINK_REFRESH={{last_refresh}}",
+                "description": "Populated automatically by 'Login — happy path'."
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Run 'Login — happy path' first.\n\nRevokes the refresh token and returns both cookies with Max-Age=0 so the browser deletes them."
+          }
+        },
+        {
+          "name": "Logout — no cookie (still 204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('Cookies are still cleared even without a refresh cookie', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie')",
+                  "        .map(h => h.value);",
+                  "    pm.expect(cookies.some(c => c.includes('LINK_SESSION') && c.includes('Max-Age=0'))).to.be.true;",
+                  "    pm.expect(cookies.some(c => c.includes('LINK_REFRESH') && c.includes('Max-Age=0'))).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout without a refresh cookie — e.g. the cookie has already expired. The server still clears both cookies and returns 204. No revocation happens (nothing to revoke)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Via Gateway",
+      "description": "Smoke tests that exercise the full stack: browser → gateway (8080) → auth-service (8081).\n\nThe gateway reads the LINK_SESSION cookie, verifies the JWT, and forwards Authorization: Bearer to auth-service.\n\nRun order: Gateway Login → Gateway Me (cookie) → Gateway Logout",
+      "item": [
+        {
+          "name": "Gateway — Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('LINK_SESSION cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie').map(h => h.value);",
+                  "    pm.expect(cookies.some(c => c.includes('LINK_SESSION'))).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('LINK_REFRESH cookie is set', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie').map(h => h.value);",
+                  "    pm.expect(cookies.some(c => c.includes('LINK_REFRESH'))).to.be.true;",
+                  "});",
+                  "",
+                  "const sessionHeader = pm.response.headers.all()",
+                  "    .filter(h => h.key === 'Set-Cookie').map(h => h.value)",
+                  "    .find(c => c.startsWith('LINK_SESSION='));",
+                  "if (sessionHeader) {",
+                  "    const jwt = sessionHeader.split('=')[1].split(';')[0];",
+                  "    pm.collectionVariables.set('last_jwt', jwt);",
+                  "}",
+                  "",
+                  "const refreshHeader = pm.response.headers.all()",
+                  "    .filter(h => h.key === 'Set-Cookie').map(h => h.value)",
+                  "    .find(c => c.startsWith('LINK_REFRESH='));",
+                  "if (refreshHeader) {",
+                  "    const refresh = refreshHeader.split('=')[1].split(';')[0];",
+                  "    pm.collectionVariables.set('last_refresh', refresh);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_base_url}}/api/auth/login",
+              "host": ["{{gateway_base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login through the gateway. The gateway forwards to auth-service:8081/auth/login (strips /api prefix). Signup is excluded — just needs alice to exist already."
+          }
+        },
+        {
+          "name": "Gateway — Me (via LINK_SESSION cookie)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Body has id, email, username', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('id');",
+                  "    pm.expect(body).to.have.property('email');",
+                  "    pm.expect(body).to.have.property('username');",
+                  "});",
+                  "",
+                  "pm.test('This proves the gateway rewrote the cookie to a Bearer token', () => {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "LINK_SESSION={{last_jwt}}",
+                "description": "Simulates the browser sending the HttpOnly cookie. The gateway reads it, verifies the JWT, and forwards Authorization: Bearer to auth-service."
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_base_url}}/api/auth/me",
+              "host": ["{{gateway_base_url}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "GET /api/auth/me through the gateway using the LINK_SESSION cookie.\n\nWhat happens internally:\n  1. Gateway reads LINK_SESSION cookie value (the JWT)\n  2. Verifies signature + expiry with the RSA public key\n  3. Adds Authorization: Bearer <jwt> header\n  4. Forwards to auth-service:8081/auth/me\n  5. auth-service Spring Security validates the Bearer token and returns user info\n\nIf this returns 200, the cookie→JWT→Bearer rewrite is working."
+          }
+        },
+        {
+          "name": "Gateway — Me without cookie → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401 Unauthorized', () => {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Gateway rejects request before reaching auth-service', () => {",
+                  "    pm.expect(pm.response.code).to.equal(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_base_url}}/api/auth/me",
+              "host": ["{{gateway_base_url}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "No LINK_SESSION cookie. The gateway's JwtCookieFilter rejects the request with 401 before it even reaches auth-service."
+          }
+        },
+        {
+          "name": "Gateway — Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('Both cookies are cleared', () => {",
+                  "    const cookies = pm.response.headers.all()",
+                  "        .filter(h => h.key === 'Set-Cookie').map(h => h.value);",
+                  "    pm.expect(cookies.some(c => c.includes('LINK_SESSION') && c.includes('Max-Age=0'))).to.be.true;",
+                  "    pm.expect(cookies.some(c => c.includes('LINK_REFRESH') && c.includes('Max-Age=0'))).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "LINK_REFRESH={{last_refresh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_base_url}}/api/auth/logout",
+              "host": ["{{gateway_base_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout through the gateway. /api/auth/logout is a public path — the gateway skips JWT validation and forwards directly. Auth-service revokes the refresh token and clears cookies."
           }
         }
       ]
