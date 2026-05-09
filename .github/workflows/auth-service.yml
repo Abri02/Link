@@ -2,7 +2,7 @@ name: auth-service tests
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main]
     paths:
       - "Link-BE/auth-service/**"
       - "Link-BE/shared-jwt/**"
@@ -15,6 +15,10 @@ on:
       - "Link-BE/shared-jwt/**"
       - "Link-BE/build.gradle.kts"
       - "Link-BE/settings.gradle.kts"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
