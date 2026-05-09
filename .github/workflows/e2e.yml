@@ -65,21 +65,34 @@ jobs:
 
       - name: Start auth-service
         run: |
-          java -jar Link-BE/auth-service/build/libs/auth-service-*.jar \
-            >> /tmp/auth-service.log 2>&1 &
+          # Exclude the -plain.jar (non-executable) that Spring Boot also produces
+          JAR=$(find Link-BE/auth-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          echo "Starting auth-service: $JAR"
+          java -jar "$JAR" >> /tmp/auth-service.log 2>&1 &
           echo $! > /tmp/auth-service.pid
 
       - name: Start gateway
         run: |
-          java -jar Link-BE/gateway/build/libs/gateway-*.jar \
-            >> /tmp/gateway.log 2>&1 &
+          JAR=$(find Link-BE/gateway/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          echo "Starting gateway: $JAR"
+          java -jar "$JAR" >> /tmp/gateway.log 2>&1 &
           echo $! > /tmp/gateway.pid
 
       - name: Wait for gateway to accept connections
         run: |
-          echo "Waiting for gateway on :8080..."
-          timeout 90 bash -c 'until nc -z localhost 8080; do sleep 3; done'
-          echo "Gateway is up."
+          echo "Waiting for gateway on :8080 (up to 120 s)..."
+          for i in $(seq 1 40); do
+            if nc -z localhost 8080 2>/dev/null; then
+              echo "Gateway is up after $((i * 3)) s."
+              exit 0
+            fi
+            echo "  [${i}/40] not ready yet..."
+            sleep 3
+          done
+          echo "::error::Gateway did not start within 120 s. Dumping logs:"
+          echo "=== auth-service ===" && cat /tmp/auth-service.log || true
+          echo "=== gateway ===" && cat /tmp/gateway.log || true
+          exit 1
 
       # ── Frontend & tests ──────────────────────────────────────────────
       - name: Install frontend dependencies
