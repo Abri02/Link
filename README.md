@@ -438,13 +438,26 @@ Listed in the order they should ship. Each is roughly 1–2 weeks.
 
 ---
 
-## 8. Local development quickstart (target state by end of week 1)
+## 8. Local development quickstart
 
 ```bash
-# in repo root
-docker compose -f infra/docker-compose.yml up -d   # postgres + services
-cd Link-FE && npm install && npm run dev           # http://localhost:5173
+# 1. Start the backing services (Postgres + all Spring Boot services)
+docker compose -f infra/docker-compose.yml up -d
+
+# 2. Start the frontend (separate terminal)
+cd Link-FE
+npm install
+npm run dev          # → http://localhost:5173
+
+# 3. (Optional) Run the E2E auth smoke tests
+#    Requires the full stack to be running (steps 1–2, services healthy)
+cd Link-FE
+npx playwright test  # runs e2e/auth.spec.ts in Chromium
 ```
+
+> **Prerequisites:** Docker Desktop (or Docker Engine + Compose v2), Node.js ≥ 20.
+> The gateway listens on `localhost:8080`; the React dev server on `localhost:5173`.
+> Hot-reload is enabled — edits to `Link-FE/src` reflect immediately in the browser.
 
 ---
 
@@ -459,8 +472,8 @@ cd Link-FE && npm install && npm run dev           # http://localhost:5173
 - [ ] **Day 3** — `auth-service` signup/login: `POST /auth/signup`, `POST /auth/login`, BCrypt, sets `LINK_SESSION` + `LINK_REFRESH` cookies.
 - [ ] **Day 4** — `auth-service` refresh/logout/me: `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`. `refresh_token` table + revocation.
 - [ ] **Day 5** — Gateway: Spring Cloud Gateway. Cookie → JWT rewrite. Routes to all services. CORS for `localhost:5173`.
-- [ ] **Day 6** — Frontend: Chakra UI swap, `/login` + `/signup` pages, protected route wrapper, `credentials: "include"` fetch.
-- [ ] **Day 7** — Buffer / polish: end-to-end sign-up → login → logout smoke test.
+- [x] **Day 6** — Frontend: Chakra UI swap, `/login` + `/signup` pages, protected route wrapper, `credentials: "include"` fetch, 401 → redirect, Zustand auth store.
+- [x] **Day 7** — Buffer / polish: Playwright E2E auth smoke test (`e2e/auth.spec.ts`), README quickstart.
 
 ### Phase 1 — Week 2 (Core domain)
 
