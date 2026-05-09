@@ -469,9 +469,9 @@ npx playwright test  # runs e2e/auth.spec.ts in Chromium
 
 - [x] **Day 1** — Repo restructure: Gradle multi-project (`shared-jwt`, `auth-service`, `user-service`, `messaging-service`, `gateway`). `LinkUser` → `AuthUser` in `auth-service`. `infra/docker-compose.yml` with postgres:16 + schema init.
 - [x] **Day 2** — `shared-jwt` library: RSA-2048 keypair committed as dev keys, `KeyLoader`, `JwtSigner` (RS256 via Nimbus), `Claims` constants.
-- [ ] **Day 3** — `auth-service` signup/login: `POST /auth/signup`, `POST /auth/login`, BCrypt, sets `LINK_SESSION` + `LINK_REFRESH` cookies.
-- [ ] **Day 4** — `auth-service` refresh/logout/me: `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`. `refresh_token` table + revocation.
-- [ ] **Day 5** — Gateway: Spring Cloud Gateway. Cookie → JWT rewrite. Routes to all services. CORS for `localhost:5173`.
+- [x] **Day 3** — `auth-service` signup/login: `POST /auth/signup`, `POST /auth/login`, BCrypt, sets `LINK_SESSION` + `LINK_REFRESH` cookies.
+- [x] **Day 4** — `auth-service` refresh/logout/me: `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`. `refresh_token` table + revocation.
+- [x] **Day 5** — Gateway: Spring Cloud Gateway. Cookie → JWT rewrite. Routes to all services. CORS for `localhost:5173`.
 - [x] **Day 6** — Frontend: Chakra UI swap, `/login` + `/signup` pages, protected route wrapper, `credentials: "include"` fetch, 401 → redirect, Zustand auth store.
 - [x] **Day 7** — Buffer / polish: Playwright E2E auth smoke test (`e2e/auth.spec.ts`), README quickstart.
 
