@@ -5,6 +5,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain
 import org.springframework.cloud.gateway.filter.GlobalFilter
 import org.springframework.core.Ordered
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
@@ -35,7 +36,9 @@ class JwtCookieFilter(private val jwtVerifier: JwtVerifier) : GlobalFilter, Orde
     override fun filter(exchange: ServerWebExchange, chain: GatewayFilterChain): Mono<Void> {
         val path = exchange.request.uri.path
 
-        if (path in PUBLIC_PATHS) {
+        // CorsWebFilter at HIGHEST_PRECEDENCE handles preflights, but passing OPTIONS
+        // through here too ensures nothing blocks the preflight response mid-chain.
+        if (exchange.request.method == HttpMethod.OPTIONS || path in PUBLIC_PATHS) {
             return chain.filter(exchange)
         }
 
