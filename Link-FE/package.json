@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "generate:types": "openapi-typescript http://localhost:8081/v3/api-docs --output src/generated/api.d.ts"
   },
   "dependencies": {

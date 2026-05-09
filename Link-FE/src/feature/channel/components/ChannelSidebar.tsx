@@ -26,10 +26,13 @@ export function ChannelSidebar() {
 
   if (!selectedWorkspaceId) {
     return (
-      <VStack {...SIDEBAR_STYLES} alignItems="center" justifyContent="center">
-        <Text color="rgba(244,244,246,0.3)" fontSize="13px" textAlign="center" px="16px">
-          Select a workspace
-        </Text>
+      <VStack {...SIDEBAR_STYLES} alignItems="stretch" gap="0">
+        <Box flex="1" display="flex" alignItems="center" justifyContent="center">
+          <Text color="rgba(244,244,246,0.3)" fontSize="13px" textAlign="center" px="16px">
+            Select a workspace
+          </Text>
+        </Box>
+        <SidebarFooter />
       </VStack>
     );
   }

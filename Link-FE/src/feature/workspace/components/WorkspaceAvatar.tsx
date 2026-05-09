@@ -22,6 +22,7 @@ export function WorkspaceAvatar({ workspace, isSelected, onClick }: Props) {
     <Tip label={workspace.name} placement="right">
       <Box
         as="button"
+        aria-label={workspace.name}
         onClick={onClick}
         w="40px"
         h="40px"
