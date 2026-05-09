@@ -2,9 +2,13 @@ name: E2E Tests
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main]
   pull_request:
     branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:
@@ -61,15 +65,28 @@ jobs:
       # ── Backend ───────────────────────────────────────────────────────
       - name: Build backend (skip tests)
         working-directory: Link-BE
-        run: ./gradlew :auth-service:bootJar :gateway:bootJar -x test --no-daemon
+        run: ./gradlew :auth-service:bootJar :user-service:bootJar :messaging-service:bootJar :gateway:bootJar -x test --no-daemon
 
       - name: Start auth-service
         run: |
-          # Exclude the -plain.jar (non-executable) that Spring Boot also produces
           JAR=$(find Link-BE/auth-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
           echo "Starting auth-service: $JAR"
           java -jar "$JAR" >> /tmp/auth-service.log 2>&1 &
           echo $! > /tmp/auth-service.pid
+
+      - name: Start user-service
+        run: |
+          JAR=$(find Link-BE/user-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          echo "Starting user-service: $JAR"
+          java -jar "$JAR" >> /tmp/user-service.log 2>&1 &
+          echo $! > /tmp/user-service.pid
+
+      - name: Start messaging-service
+        run: |
+          JAR=$(find Link-BE/messaging-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          echo "Starting messaging-service: $JAR"
+          java -jar "$JAR" >> /tmp/messaging-service.log 2>&1 &
+          echo $! > /tmp/messaging-service.pid
 
       - name: Start gateway
         run: |
@@ -78,21 +95,34 @@ jobs:
           java -jar "$JAR" >> /tmp/gateway.log 2>&1 &
           echo $! > /tmp/gateway.pid
 
-      - name: Wait for gateway to accept connections
+      - name: Wait for all services to accept connections
         run: |
-          echo "Waiting for gateway on :8080 (up to 120 s)..."
-          for i in $(seq 1 40); do
-            if nc -z localhost 8080 2>/dev/null; then
-              echo "Gateway is up after $((i * 3)) s."
-              exit 0
-            fi
-            echo "  [${i}/40] not ready yet..."
-            sleep 3
-          done
-          echo "::error::Gateway did not start within 120 s. Dumping logs:"
-          echo "=== auth-service ===" && cat /tmp/auth-service.log || true
-          echo "=== gateway ===" && cat /tmp/gateway.log || true
-          exit 1
+          wait_for_port() {
+            local port=$1
+            local name=$2
+            echo "Waiting for $name on :$port (up to 120 s)..."
+            for i in $(seq 1 40); do
+              if nc -z localhost "$port" 2>/dev/null; then
+                echo "$name is up after $((i * 3)) s."
+                return 0
+              fi
+              echo "  [${i}/40] $name not ready yet..."
+              sleep 3
+            done
+            echo "::error::$name did not start within 120 s."
+            return 1
+          }
+
+          wait_for_port 8081 auth-service || { cat /tmp/auth-service.log; exit 1; }
+          wait_for_port 8082 user-service || { cat /tmp/user-service.log; exit 1; }
+          wait_for_port 8083 messaging-service || { cat /tmp/messaging-service.log; exit 1; }
+          wait_for_port 8080 gateway || {
+            echo "=== auth-service ===" && cat /tmp/auth-service.log || true
+            echo "=== user-service ===" && cat /tmp/user-service.log || true
+            echo "=== messaging-service ===" && cat /tmp/messaging-service.log || true
+            echo "=== gateway ===" && cat /tmp/gateway.log || true
+            exit 1
+          }
 
       # ── Frontend & tests ──────────────────────────────────────────────
       - name: Install frontend dependencies
@@ -127,5 +157,9 @@ jobs:
         if: failure()
         with:
           name: service-logs
-          path: /tmp/*.log
+          path: |
+            /tmp/auth-service.log
+            /tmp/user-service.log
+            /tmp/messaging-service.log
+            /tmp/gateway.log
           retention-days: 3
