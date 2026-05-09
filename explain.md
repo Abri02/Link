@@ -8,7 +8,7 @@ A plain-language companion to the README. The README is a planning doc; this fil
 
 ## 1. What exists right now (May 2025)
 
-The repo has three days of real work and a UI visual prototype on top of an initial scaffold.
+The repo has five days of real backend work and a UI visual prototype.
 
 ### Backend — `Link-BE/`
 
@@ -16,11 +16,11 @@ A Gradle multi-project root containing five subprojects.
 
 | Subproject | Port | Status | What it has |
 |---|---|---|---|
-| `shared-jwt` | library | **Done** | `KeyLoader`, `JwtSigner`, `Claims` constants, RSA-2048 dev keypair |
-| `auth-service` | 8081 | **Done (Day 3)** | `AuthUser` + `RefreshToken` entities, signup + login endpoints, cookie minting |
+| `shared-jwt` | library | **Done** | `KeyLoader`, `JwtSigner`, `JwtVerifier`, `Claims` constants, RSA-2048 dev keypair |
+| `auth-service` | 8081 | **Done (Day 4)** | `AuthUser` + `RefreshToken` entities, full auth cycle: signup, login, refresh (token rotation), logout, `/me` |
+| `gateway` | 8080 | **Done (Day 5)** | `JwtCookieFilter`, routes to all three services, CORS for `localhost:5173` |
 | `user-service` | 8082 | **Stub** | `main` function only |
 | `messaging-service` | 8083 | **Stub** | `main` function only |
-| `gateway` | 8080 | **Stub** | `main` function only, no routes, no JWT filter |
 
 ### File layout inside auth-service
 
@@ -28,16 +28,29 @@ A Gradle multi-project root containing five subprojects.
 auth-service/src/main/kotlin/com/github/abri02/link/auth/
 ├── AuthServiceApplication.kt       — Spring Boot entry point
 ├── config/
-│   ├── SecurityConfig.kt           — disables CSRF, stateless session, all requests permitted
-│   └── JwtConfig.kt                — creates JwtSigner + PasswordEncoder Spring beans
+│   ├── SecurityConfig.kt           — CSRF off, stateless, public paths permitAll, /me authenticated
+│   └── JwtConfig.kt                — JwtSigner bean (private key) + BCryptPasswordEncoder bean
 ├── controller/
-│   └── AuthController.kt           — POST /auth/signup, POST /auth/login
+│   └── AuthController.kt           — signup, login, refresh, logout, /me
 ├── token/
 │   ├── RefreshToken.kt             — JPA entity → auth.refresh_token table
-│   └── RefreshTokenRepository.kt   — JPA repo, findByTokenHash()
+│   └── RefreshTokenRepository.kt   — findByTokenHash()
 └── user/
     ├── AuthUser.kt                 — JPA entity → auth.auth_user table
-    └── AuthUserRepository.kt       — JPA repo, findByEmail(), findByUsername()
+    └── AuthUserRepository.kt       — findByEmail(), findByUsername()
+```
+
+### File layout inside gateway
+
+```
+gateway/src/main/kotlin/com/github/abri02/link/gateway/
+├── GatewayApplication.kt           — Spring Boot entry point
+├── config/
+│   └── GatewayConfig.kt            — JwtVerifier bean (public key)
+└── filter/
+    └── JwtCookieFilter.kt          — GlobalFilter: cookie → Bearer header rewrite
+gateway/src/main/resources/
+└── application.yml                 — routes (StripPrefix=1), globalcors
 ```
 
 ### Frontend — `Link-FE/`
@@ -244,7 +257,7 @@ Gateway :8080
 3. The cookie logic is isolated. If you change the cookie name or format, you change it in the gateway and auth-service only.
 4. The gateway is the right place to add rate limiting, request logging, and circuit breakers later.
 
-The gateway is NOT yet implemented (Day 5). For now, in development you hit auth-service directly on port 8081.
+The gateway is implemented (Day 5). In development, start both `GatewayApplication` and `AuthServiceApplication`. All requests go through `:8080`.
 
 ---
 
@@ -413,12 +426,17 @@ A `@Configuration` class is Spring's way of declaring beans — objects managed 
 http
     .csrf { it.disable() }
     .sessionManagement { it.sessionCreationPolicy(STATELESS) }
-    .authorizeHttpRequests { it.anyRequest().permitAll() }
+    .authorizeHttpRequests { auth ->
+        auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
+        auth.anyRequest().authenticated()
+    }
+    .oauth2ResourceServer { oauth2 -> oauth2.jwt { } }
 ```
 
-- `csrf disabled` — we use SameSite cookies so CSRF tokens are not needed for the MVP.
-- `STATELESS` — Spring Security must not create an HTTP session. We are cookie-based not session-based (the cookie carries a self-contained JWT, not a session ID).
-- `permitAll` — every request is allowed. This is a placeholder. When Day 4 adds `GET /auth/me`, that endpoint will require a valid JWT, so this config will be updated to permit only `/auth/signup` and `/auth/login`.
+- `csrf disabled` — SameSite cookies cover the same ground for the MVP.
+- `STATELESS` — no HTTP session; the JWT is self-contained.
+- Four public paths: the cookie-management endpoints don't need an existing JWT. Everything else requires one.
+- `oauth2ResourceServer` — tells Spring Security to validate `Authorization: Bearer` tokens using the RSA public key configured in `application.properties` (`spring.security.oauth2.resourceserver.jwt.public-key-location=classpath:keys/public.pem`). The key lands on auth-service's classpath automatically because `shared-jwt` is a dependency.
 
 ### `token/RefreshToken.kt`
 
@@ -438,7 +456,7 @@ class RefreshToken(
 
 `@Entity` + `@Table` tells Hibernate this class maps to the `auth.refresh_token` table. Hibernate creates this table automatically on startup because `spring.jpa.hibernate.ddl-auto=update` is set.
 
-`revokedAt` is `null` for valid tokens and set to the current timestamp when the token is explicitly revoked (logout). On Day 4, the refresh endpoint will check `revokedAt == null` before issuing a new access token.
+`revokedAt` is `null` for valid tokens. It is set to the current timestamp when the token is used for a refresh (rotation — the old token dies, a new one is issued atomically) or explicitly revoked via logout.
 
 ### `controller/AuthController.kt`
 
@@ -452,83 +470,305 @@ Spring injects these automatically because they are all declared as `@Bean`s or 
 
 ---
 
-## 6. What's NOT working right now
+## 6. What's working and what isn't
 
 | Feature | State |
 |---|---|
-| Start Postgres | `docker compose -f infra/docker-compose.yml up` works |
-| Start auth-service | Starts, creates both DB tables, listens on 8081 |
-| `POST /auth/signup` | **Works** — run `curl` test below |
-| `POST /auth/login` | **Works** — run `curl` test below |
-| `POST /auth/refresh` | Not implemented (Day 4) |
-| `POST /auth/logout` | Not implemented (Day 4) |
-| `GET /auth/me` | Not implemented (Day 4) |
-| Gateway | Not implemented (Day 5) |
-| Frontend routing | Not implemented (Day 6) |
-| Frontend API calls | Not implemented (Day 6) |
+| Start Postgres | `docker compose -f infra/docker-compose.yml up -d` |
+| Start auth-service | Starts, creates both DB tables, listens on :8081 |
+| Start gateway | Starts, listens on :8080, routes to :8081/:8082/:8083 |
+| `POST /api/auth/signup` | **Works** via gateway or direct |
+| `POST /api/auth/login` | **Works** via gateway or direct |
+| `POST /api/auth/refresh` | **Works** via gateway or direct |
+| `POST /api/auth/logout` | **Works** via gateway or direct |
+| `GET /api/auth/me` | **Works** via gateway (cookie→Bearer rewrite) |
+| Frontend routing | Not done (Day 6) |
+| Frontend API calls | Not done (Day 6) |
+| `user-service` | Not done (Day 8) |
+| `messaging-service` | Not done (Days 9–12) |
 
 ---
 
 ## 7. How to test what's built right now
 
+### Full stack via gateway (preferred after Day 5)
+
 ```bash
-# 1. Start Postgres
+# 1. Start Postgres + auth-service + gateway
 docker compose -f infra/docker-compose.yml up -d
+# Then run AuthServiceApplication and GatewayApplication in IntelliJ
 
-# 2. Start auth-service from IntelliJ (run AuthServiceApplication)
+# 2. Signup
+curl -c cookies.txt -X POST http://localhost:8080/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","username":"alice","password":"secret123"}'
+# Expect: 201, two Set-Cookie headers saved to cookies.txt
 
-# 3. Signup
+# 3. /me — gateway reads LINK_SESSION cookie, adds Bearer header, forwards
+curl -b cookies.txt http://localhost:8080/api/auth/me
+# Expect: 200, {"id":1,"email":"alice@example.com","username":"alice"}
+# If this works, the cookie→JWT→Bearer rewrite is confirmed end-to-end.
+
+# 4. Refresh
+curl -b cookies.txt -c cookies.txt -X POST http://localhost:8080/api/auth/refresh
+# Expect: 204, fresh LINK_SESSION + LINK_REFRESH cookies saved
+
+# 5. Logout
+curl -b cookies.txt -c cookies.txt -X POST http://localhost:8080/api/auth/logout
+# Expect: 204, both cookies cleared (Max-Age=0 in response)
+
+# 6. /me after logout — gateway rejects before reaching auth-service
+curl -b cookies.txt http://localhost:8080/api/auth/me
+# Expect: 401 (LINK_SESSION cookie is gone, gateway returns UNAUTHORIZED)
+```
+
+### Direct to auth-service (bypasses gateway, useful for isolated testing)
+
+```bash
+# Signup direct
 curl -v -X POST http://localhost:8081/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email":"alice@example.com","username":"alice","password":"secret123"}'
-# Expect: HTTP/1.1 201
-# Expect: two Set-Cookie headers in the response
 
-# 4. Login
-curl -v -X POST http://localhost:8081/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","password":"secret123"}'
-# Expect: HTTP/1.1 204, two Set-Cookie headers
+# /me direct — must pass Bearer manually (no gateway to rewrite the cookie)
+JWT="<paste LINK_SESSION value here>"
+curl -v http://localhost:8081/auth/me -H "Authorization: Bearer $JWT"
 
-# 5. Wrong password
-curl -v -X POST http://localhost:8081/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","password":"wrongpassword"}'
-# Expect: HTTP/1.1 401
+# Refresh direct
+REFRESH="<paste LINK_REFRESH value here>"
+curl -v -X POST http://localhost:8081/auth/refresh -H "Cookie: LINK_REFRESH=$REFRESH"
 
-# 6. Duplicate signup
-curl -v -X POST http://localhost:8081/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","username":"alice","password":"secret123"}'
-# Expect: HTTP/1.1 409, {"message":"Email is already registered"}
+# Logout direct
+curl -v -X POST http://localhost:8081/auth/logout -H "Cookie: LINK_REFRESH=$REFRESH"
 ```
 
 ---
 
-## 8. The next thing to build — Day 4
+## 8. What happens during refresh, logout, and /me — Day 4
 
-`POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`.
+### `POST /auth/refresh`
 
-These three endpoints complete the auth-service. After Day 4, the auth contract is finished and Day 5 (the gateway) can be built.
+The browser calls this when the 15-minute access token expires (or the frontend proactively refreshes before expiry).
 
-**`POST /auth/refresh`:**
-- Read `LINK_REFRESH` cookie value from the request.
-- SHA-256 hash it.
-- Look up `RefreshTokenRepository.findByTokenHash(hash)`.
-- Check: exists? not revoked? not expired?
-- If all good: load the user, mint a new JWT + new refresh token, revoke the old refresh token (rotation), return 204 + new cookies.
-- Rotation means each refresh token can only be used once. If an attacker somehow gets a refresh token and uses it, the next legitimate use will fail (the token is already revoked), alerting the user to log in again.
+**Step 1 — Read and hash the refresh cookie**
+```kotlin
+@CookieValue(name = "LINK_REFRESH", required = false) rawRefresh: String?
+val hash = sha256(rawRefresh)
+```
+`sha256()` is the same helper used on signup/login. We never touch the raw value again after hashing it.
 
-**`POST /auth/logout`:**
-- Read `LINK_REFRESH` cookie.
-- Hash it, find in DB, set `revokedAt = now`.
-- Return 204 with `Max-Age=0` on both cookies (tells the browser to delete them immediately).
+**Step 2 — Look up in the database**
+```kotlin
+val stored = tokens.findByTokenHash(hash)
+    ?: return 401  // "Invalid refresh token"
+```
+One `SELECT` from `auth.refresh_token WHERE token_hash = ?`.
 
-**`GET /auth/me`:**
-- This endpoint requires a valid JWT (update `SecurityConfig` to enforce auth on this path).
-- Spring Security parses the `Authorization: Bearer` header (added by the gateway in production; in local dev, pass it manually in the curl).
-- Read the JWT subject claim (`sub` = userId), return it as JSON.
-- Used by the frontend as a "are you still logged in?" check on page load.
+**Step 3 — Validate**
+```kotlin
+if (stored.revokedAt != null) return 401  // already used or explicitly revoked
+if (stored.expiresAt.isBefore(Instant.now())) return 401  // past 7-day TTL
+```
+
+**Step 4 — Load the user**
+```kotlin
+val user = users.findById(stored.userId).orElse(null) ?: return 401
+```
+
+**Step 5 — Token rotation (revoke old, issue new)**
+```kotlin
+stored.revokedAt = Instant.now()
+tokens.save(stored)          // old token is now dead
+// mintAndStoreCookies() generates a brand-new refresh token + JWT
+```
+The entire method is `@Transactional` — the revocation and new-token insertion happen atomically. If the second save fails, the first rolls back, so the old token stays valid.
+
+**Why rotation matters:** each refresh token can only be used once. If an attacker steals a refresh token from network traffic and tries to use it later, one of two things happens:
+- If the legitimate user hasn't refreshed yet: the attacker's use revokes the token, the legitimate user's next refresh fails → they have to log in again (inconvenient but safe).
+- If the legitimate user refreshed first: the attacker's attempt finds the token already revoked → blocked.
+
+**Step 6 — Return 204 + new cookies** — identical to login.
+
+---
+
+### `POST /auth/logout`
+
+**Step 1 — Revoke the refresh token (if present)**
+```kotlin
+tokens.findByTokenHash(sha256(rawRefresh))?.let { token ->
+    if (token.revokedAt == null) {
+        token.revokedAt = Instant.now()
+        tokens.save(token)
+    }
+}
+```
+The refresh cookie is `required = false`. If it is missing (already expired or cleared), we skip revocation silently — the goal is just to clear the browser cookies.
+
+**Step 2 — Clear both cookies**
+```kotlin
+ResponseCookie.from("LINK_SESSION", "").maxAge(0).build()
+ResponseCookie.from("LINK_REFRESH", "").maxAge(0).path("/api/auth/refresh").build()
+```
+`Max-Age=0` tells the browser to delete the cookie immediately. The path must match the path the cookie was originally set with, otherwise the browser won't know which stored cookie to delete.
+
+---
+
+### `GET /auth/me`
+
+This endpoint is different from the others: it is **authenticated**. Only requests carrying a valid JWT are allowed in.
+
+**How Spring Security validates the JWT:**
+
+`SecurityConfig` now includes:
+```kotlin
+.oauth2ResourceServer { oauth2 -> oauth2.jwt { } }
+```
+And `application.properties` has:
+```
+spring.security.oauth2.resourceserver.jwt.public-key-location=classpath:keys/public.pem
+```
+Spring Security reads the `Authorization: Bearer <token>` header, parses the JWT, and verifies the signature with the public key from `shared-jwt`'s classpath resources. If the signature is invalid or the token is expired, Spring returns 401 before the controller method is called.
+
+**The controller method:**
+```kotlin
+@GetMapping("/me")
+fun me(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<MeResponse> =
+    ResponseEntity.ok(
+        MeResponse(
+            id = jwt.subject.toLong(),
+            email = jwt.getClaim(Claims.EMAIL),
+            username = jwt.getClaim(Claims.USERNAME)
+        )
+    )
+```
+Spring injects the validated `Jwt` object. We read `sub` (the user ID), `email`, and `username` directly from the token — no database query needed. The data is already in the JWT because `JwtSigner.sign()` embedded it there at login time.
+
+**In production (Day 5+):** the gateway reads `LINK_SESSION`, rewrite it to `Authorization: Bearer <jwt>`, and forwards it. The `/me` endpoint never sees a cookie.
+
+**In local dev (before gateway):** copy the JWT value from the `LINK_SESSION` Set-Cookie header returned by login and pass it as `Authorization: Bearer <jwt>` manually.
+
+---
+
+## 8a. SecurityConfig changes in Day 4
+
+The Day 3 `SecurityConfig` permitted everything. Day 4 changes it to:
+
+```kotlin
+.authorizeHttpRequests { auth ->
+    auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh", "/auth/logout").permitAll()
+    auth.anyRequest().authenticated()
+}
+.oauth2ResourceServer { oauth2 -> oauth2.jwt { } }
+```
+
+- Public paths: signup, login, refresh, logout. These four don't need a valid JWT to be called.
+- Everything else (currently just `/auth/me`) requires a valid JWT.
+
+`/auth/logout` is public even though it's a "protected" action because the access token might already be expired when the user tries to log out. The refresh cookie is the auth mechanism for logout.
+
+## 8b. How the gateway works — Day 5
+
+### The filter: `JwtCookieFilter`
+
+This is the heart of the gateway. It is a `GlobalFilter` with order `-1`, which means it runs before Spring Cloud Gateway's own routing filters.
+
+```kotlin
+@Component
+class JwtCookieFilter(private val jwtVerifier: JwtVerifier) : GlobalFilter, Ordered {
+
+    private val PUBLIC_PATHS = setOf(
+        "/api/auth/signup", "/api/auth/login",
+        "/api/auth/refresh", "/api/auth/logout"
+    )
+
+    override fun getOrder() = -1
+
+    override fun filter(exchange: ServerWebExchange, chain: GatewayFilterChain): Mono<Void> {
+        val path = exchange.request.uri.path
+
+        if (path in PUBLIC_PATHS) return chain.filter(exchange)  // skip JWT check
+
+        val token = exchange.request.cookies.getFirst("LINK_SESSION")?.value
+            ?: return reject(exchange)  // no cookie → 401
+
+        if (!jwtVerifier.verify(token)) return reject(exchange)  // bad JWT → 401
+
+        val forwarded = exchange.request.mutate()
+            .header(HttpHeaders.AUTHORIZATION, "Bearer $token")
+            .build()
+        return chain.filter(exchange.mutate().request(forwarded).build())
+    }
+}
+```
+
+`JwtVerifier` (in `shared-jwt`) parses the JWT string with Nimbus, verifies the RSA-2048 signature against the public key, and checks the expiry. All Nimbus types stay inside `shared-jwt` — the gateway only calls `verify(token: String): Boolean`.
+
+**Why order `-1`?** Spring Cloud Gateway's routing filter runs at order `Integer.MIN_VALUE` (very early), but our filter needs to run even earlier so it can mutate the request before routing. Actually, routing happens at a fixed internal order; `-1` is early enough to guarantee our header mutation is visible to the routed request.
+
+**Why are the four auth paths public?**
+
+| Path | Reason |
+|---|---|
+| `/api/auth/signup` | No session exists yet — there is no JWT to verify |
+| `/api/auth/login` | Same — the JWT is created here |
+| `/api/auth/refresh` | Uses the LINK_REFRESH cookie, not LINK_SESSION; the access token may be expired |
+| `/api/auth/logout` | Access token may already be expired when the user logs out |
+
+### Routing + path rewriting
+
+Configured declaratively in `application.yml`:
+
+```yaml
+routes:
+  - id: auth
+    uri: http://localhost:8081
+    predicates: [Path=/api/auth/**]
+    filters: [StripPrefix=1]      # /api/auth/login → /auth/login
+
+  - id: users
+    uri: http://localhost:8082
+    predicates: [Path=/api/users/**]
+    filters: [StripPrefix=1]      # /api/users/me → /users/me
+
+  - id: messaging
+    uri: http://localhost:8083
+    predicates: [Path=/api/**]
+    filters: [StripPrefix=1]      # /api/workspaces → /workspaces
+```
+
+`StripPrefix=1` removes the first path segment (`/api`). From each service's perspective the gateway prefix never existed — they receive requests as if the browser called them directly.
+
+Route order matters: the more specific `/api/auth/**` and `/api/users/**` predicates are listed first. The catch-all `/api/**` is last, so it only matches what the first two don't.
+
+### CORS
+
+```yaml
+globalcors:
+  cors-configurations:
+    '[/**]':
+      allowed-origins: ["http://localhost:5173"]
+      allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+      allowed-headers: ["*"]
+      allow-credentials: true
+      max-age: 3600
+```
+
+`allow-credentials: true` is required for the browser to send HttpOnly cookies on cross-origin requests (the React dev server at `:5173` is a different origin from the gateway at `:8080`). Without this, the browser silently drops all cookies.
+
+### A note on Spring Cloud Gateway 5.x
+
+Spring Cloud Gateway changed its artifact name in version 5 (for Spring Boot 4):
+
+| Spring Boot | Spring Cloud | Artifact |
+|---|---|---|
+| 3.x | 4.x | `spring-cloud-starter-gateway` |
+| 4.x | 5.x (2025.1.x) | `spring-cloud-starter-gateway-server-webflux` |
+
+The BOM is imported via the `io.spring.dependency-management` plugin's `dependencyManagement` block, not Gradle's native `platform()`. The two conflict because the Spring Boot plugin intercepts dependency resolution.
+
+### The next thing to build — Day 6
+
+Day 6 is the **frontend**: swap remaining Tailwind/shadcn code, add React Router, build `/login` and `/signup` pages with Chakra UI, add a protected route wrapper that calls `GET /api/auth/me` on mount, and add a `fetch` wrapper that sends `credentials: "include"` so cookies are forwarded on every request.
 
 ---
 
@@ -539,9 +779,9 @@ Phase 1 — 3-week MVP (in progress)
   Week 1: auth endpoints + gateway + frontend auth pages
     ✅ Day 1 — repo structure, Gradle multi-project, Docker infra
     ✅ Day 2 — shared-jwt library (KeyLoader, JwtSigner, Claims, RSA keys)
-    ✅ Day 3 — auth-service: POST /auth/signup + POST /auth/login  ← DONE TODAY
-    ⬜ Day 4 — auth-service: POST /auth/refresh, POST /auth/logout, GET /auth/me
-    ⬜ Day 5 — gateway: JWT cookie filter + routing + CORS
+    ✅ Day 3 — auth-service: POST /auth/signup + POST /auth/login
+    ✅ Day 4 — auth-service: POST /auth/refresh (rotation), POST /auth/logout, GET /auth/me
+    ✅ Day 5 — gateway: JwtCookieFilter, StripPrefix routing, CORS  ← DONE TODAY
     ⬜ Day 6 — frontend: routing + login/signup pages + protected route
     ⬜ Day 7 — buffer/smoke test
   Week 2: workspaces, channels, messages (REST)
@@ -566,6 +806,7 @@ Semester 2
 | Refresh token storage | SHA-256 hash in DB, raw in cookie | DB leak cannot be replayed; same principle as password hashing |
 | Microservice boundary | Schema-per-service, one Postgres | Logical isolation without operating a fleet of databases for a thesis project |
 | Gateway pattern | All browser traffic through one port | Browser only needs one origin; cookie never reaches business code |
+| Spring Cloud Gateway version | 5.x / `spring-cloud-starter-gateway-server-webflux` | Renamed in v5 for Spring Boot 4; BOM via `dependencyManagement` block (not `platform()` — they conflict) |
 | Real-time protocol | STOMP over WebSocket (planned Day 15) | First-class Spring support; pub/sub built in |
 | Frontend state split | TanStack Query + Zustand (planned Day 6) | Query handles server cache; Zustand handles local UI — each does one thing well |
 | Dev keypair committed | Yes, in shared-jwt resources | Eliminates setup friction; prod keys override via env |
