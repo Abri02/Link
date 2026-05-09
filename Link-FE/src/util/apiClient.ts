@@ -7,6 +7,14 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers: { 'Content-Type': 'application/json', ...options.headers },
   });
 
+  if (response.status === 401) {
+    if (!window.location.pathname.match(/^\/(login|signup)/)) {
+      window.location.href = "/login";
+      return;
+    }
+    throw new Error("Invalid email or password");
+  }
+
   if (!response.ok) throw new Error('Network response was not ok');
   const contentType = response.headers.get('content-type');
   if (response.status === 204 || !contentType?.includes('application/json')) return;
