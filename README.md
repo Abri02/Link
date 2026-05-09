@@ -477,13 +477,13 @@ npx playwright test  # runs e2e/auth.spec.ts in Chromium
 
 ### Phase 1 — Week 2 (Core domain)
 
-- [ ] **Day 8** — `user-service`: `GET /users/me`, `PATCH /users/me`, `user_profile` table.
-- [ ] **Day 9** — `messaging-service` schema: `Workspace`, `WorkspaceMember`, `Channel`, `ChannelMember`, `Message` JPA entities + Flyway migration.
-- [ ] **Day 10** — Workspaces API: `POST /workspaces`, `GET /workspaces`, `POST /workspaces/{id}/members`.
-- [ ] **Day 11** — Channels API: `POST /workspaces/{id}/channels`, `GET /workspaces/{id}/channels`.
-- [ ] **Day 12** — Messages API (REST): `POST /channels/{id}/messages`, `GET /channels/{id}/messages`.
-- [ ] **Day 13** — Frontend wiring: workspace switcher, channel list, message list + composer (all Chakra).
-- [ ] **Day 14** — Buffer / polish: empty states, loading spinners, seed script.
+- [x] **Day 8** — `user-service`: `GET /users/me`, `PATCH /users/me`, `user_profile` table. Lazy-insert profile on first call; Spring Security + OAuth2 resource server added.
+- [x] **Day 9** — `messaging-service` schema: `Workspace`, `WorkspaceMember`, `Channel`, `ChannelMember`, `Message` JPA entities + Flyway migration (`V1__create_messaging_tables.sql`). `ddl-auto=none`, Flyway owns all DDL.
+- [x] **Day 10** — Workspaces API: `POST /workspaces` (slug auto-generated + auto-creates `general` channel + OWNER member), `GET /workspaces`, `POST /workspaces/{id}/members` (OWNER/ADMIN only; new member auto-joined to all channels).
+- [x] **Day 11** — Channels API: `POST /workspaces/{id}/channels`, `GET /workspaces/{id}/channels`. Creator auto-added as member; name normalised to lowercase kebab-case.
+- [x] **Day 12** — Messages API (REST): `POST /channels/{id}/messages`, `GET /channels/{id}/messages?before=&limit=50`. Caller must be a `ChannelMember`.
+- [x] **Day 13** — Frontend wiring: `WorkspacePage` (full Slack-style three-column layout). Workspace switcher sidebar, channel list + create-channel dialog, message list with grouping + message composer. TanStack Query + Zustand store. All Chakra UI.
+- [x] **Day 14** — Buffer / polish: empty states, loading `Spinner`, error messages via `apiClient` backend passthrough. Seed script at `infra/postgres/seed.sql`.
 
 ### Phase 1 — Week 3 (Realtime + demo)
 
