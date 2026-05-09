@@ -1,0 +1,47 @@
+name: user-service tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Link-BE/user-service/**"
+      - "Link-BE/shared-jwt/**"
+      - "Link-BE/build.gradle.kts"
+      - "Link-BE/settings.gradle.kts"
+  pull_request:
+    branches: [main]
+    paths:
+      - "Link-BE/user-service/**"
+      - "Link-BE/shared-jwt/**"
+      - "Link-BE/build.gradle.kts"
+      - "Link-BE/settings.gradle.kts"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: "24"
+          distribution: temurin
+          cache: gradle
+
+      - name: Run user-service unit tests
+        working-directory: Link-BE
+        run: ./gradlew :user-service:test --no-daemon
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: user-service-test-report
+          path: Link-BE/user-service/build/reports/tests/test/
+          retention-days: 7

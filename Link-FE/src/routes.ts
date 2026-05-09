@@ -28,7 +28,7 @@ const routes: RouteConfig[] = [
   {
     path: "/",
     component: lazy(() =>
-      import("./feature/HomePage").then((m) => ({ default: m.HomePage }))
+      import("./feature/workspace/pages/WorkspacePage").then((m) => ({ default: m.WorkspacePage }))
     ),
     protected: true,
   },
