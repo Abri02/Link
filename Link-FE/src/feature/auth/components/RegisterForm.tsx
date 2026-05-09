@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Box, Button, Text, VStack } from "@chakra-ui/react";
 import { Mail, Lock, AtSign, User, AlertCircle } from "lucide-react";
 import { useSignup } from "../hooks/useSignup";
@@ -10,11 +11,15 @@ export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { mutate: signup, isPending, error } = useSignup();
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !username || !password) return;
-    signup({ email, username, password, displayName: displayName || undefined });
+    signup(
+      { email, username, password, displayName: displayName || undefined },
+      { onSuccess: () => navigate("/") },
+    );
   };
 
   return (
