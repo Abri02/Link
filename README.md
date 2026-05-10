@@ -440,22 +440,55 @@ Listed in the order they should ship. Each is roughly 1–2 weeks.
 
 ## 8. Local development quickstart
 
+### Option A — Dev mode (services run in your IDE / terminal)
+
+Starts only Postgres. Run Spring Boot services and the frontend yourself.
+
 ```bash
-# 1. Start the backing services (Postgres + all Spring Boot services)
+# Terminal 1 — backing services
 docker compose -f infra/docker-compose.yml up -d
 
-# 2. Start the frontend (separate terminal)
-cd Link-FE
-npm install
-npm run dev          # → http://localhost:5173
+# Terminal 2-5 — each Spring Boot service (or run from IntelliJ)
+cd Link-BE
+./gradlew :auth-service:bootRun
+./gradlew :user-service:bootRun
+./gradlew :messaging-service:bootRun
+./gradlew :gateway:bootRun
 
-# 3. (Optional) Run the E2E auth smoke tests
-#    Requires the full stack to be running (steps 1–2, services healthy)
-cd Link-FE
-npx playwright test  # runs e2e/auth.spec.ts in Chromium
+# Terminal 6 — frontend
+cd Link-FE && npm install && npm run dev   # → http://localhost:5173
 ```
 
-> **Prerequisites:** Docker Desktop (or Docker Engine + Compose v2), Node.js ≥ 20.
+### Option B — Full stack (everything in Docker)
+
+Builds and starts all services from a single command. First build takes a few minutes.
+
+```bash
+docker compose -f infra/docker-compose.full.yml up --build
+```
+
+The gateway is available at `http://localhost:8080`. Start the frontend separately:
+
+```bash
+cd Link-FE && npm install && npm run dev   # → http://localhost:5173
+```
+
+Tear down and wipe data:
+
+```bash
+docker compose -f infra/docker-compose.full.yml down -v
+```
+
+### Running E2E tests
+
+Requires the full stack running (Option A or B) plus the frontend dev server.
+
+```bash
+cd Link-FE
+npx playwright test
+```
+
+> **Prerequisites:** Docker Desktop (or Docker Engine + Compose v2), Node.js ≥ 20, JDK 24 (dev mode only).
 > The gateway listens on `localhost:8080`; the React dev server on `localhost:5173`.
 > Hot-reload is enabled — edits to `Link-FE/src` reflect immediately in the browser.
 
