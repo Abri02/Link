@@ -1,0 +1,24 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth
+              uri: http://auth-service:8081
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - StripPrefix=1
+            - id: users
+              uri: http://user-service:8082
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - StripPrefix=1
+            - id: messaging
+              uri: http://messaging-service:8083
+              predicates:
+                - Path=/api/**
+              filters:
+                - StripPrefix=1
