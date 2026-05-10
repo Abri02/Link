@@ -2,14 +2,12 @@ name: auth-service tests
 
 on:
   push:
-    branches: [main]
     paths:
       - "Link-BE/auth-service/**"
       - "Link-BE/shared-jwt/**"
       - "Link-BE/build.gradle.kts"
       - "Link-BE/settings.gradle.kts"
   pull_request:
-    branches: [main]
     paths:
       - "Link-BE/auth-service/**"
       - "Link-BE/shared-jwt/**"
