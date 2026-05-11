@@ -5,6 +5,7 @@ import com.github.abri02.link.messaging.channel.ChannelRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.transaction.annotation.Transactional
@@ -36,7 +37,8 @@ data class ErrorResponse(val message: String)
 class MessageController(
     private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository,
-    private val messages: MessageRepository
+    private val messages: MessageRepository,
+    private val broker: SimpMessagingTemplate
 ) {
 
     @PostMapping
@@ -65,7 +67,9 @@ class MessageController(
                 parentMessageId = req.parentMessageId
             )
         )
-        return ResponseEntity.status(HttpStatus.CREATED).body(message.toResponse())
+        val response = message.toResponse()
+        broker.convertAndSend("/topic/channel.$channelId", response)
+        return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
     @GetMapping
