@@ -1,6 +1,7 @@
 import { VStack, HStack, Box, Text } from "@chakra-ui/react";
 import { Hash } from "lucide-react";
 import { useMessages } from "@/feature/message/hooks/useMessages";
+import { useChannelSocket } from "@/feature/message/hooks/useChannelSocket";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { MessageList } from "./MessageList";
@@ -11,6 +12,7 @@ export function MessageArea() {
   const selectedChannelId = useWorkspaceStore((s) => s.selectedChannelId);
   const { data: channels } = useChannels(selectedWorkspaceId);
   const { data: messages, isLoading } = useMessages(selectedChannelId);
+  useChannelSocket(selectedChannelId);
 
   const channel = channels?.find((c) => c.id === selectedChannelId);
 
