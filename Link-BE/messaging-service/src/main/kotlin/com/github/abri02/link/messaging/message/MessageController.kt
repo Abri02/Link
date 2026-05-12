@@ -30,6 +30,12 @@ data class MessageResponse(
     val parentMessageId: Long?
 )
 
+data class NotificationEvent(
+    val channelId: Long,
+    val authorId: Long,
+    val bodyPreview: String
+)
+
 data class ErrorResponse(val message: String)
 
 @RestController
@@ -69,6 +75,13 @@ class MessageController(
         )
         val response = message.toResponse()
         broker.convertAndSend("/topic/channel.$channelId", response)
+
+        val preview = response.body.take(100)
+        val notification = NotificationEvent(channelId, userId, preview)
+        channelMembers.findByChannelId(channelId)
+            .filter { it.userId != userId }
+            .forEach { broker.convertAndSendToUser(it.userId.toString(), "/queue/notifications", notification) }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 

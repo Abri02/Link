@@ -21,8 +21,9 @@ class WebSocketConfig(
     }
 
     override fun configureMessageBroker(config: MessageBrokerRegistry) {
-        config.enableSimpleBroker("/topic")
+        config.enableSimpleBroker("/topic", "/queue")
         config.setApplicationDestinationPrefixes("/app")
+        config.setUserDestinationPrefix("/user")
     }
 
     override fun configureClientInboundChannel(registration: ChannelRegistration) {

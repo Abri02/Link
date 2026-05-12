@@ -1,10 +1,13 @@
 import { VStack, Box, Text, Dialog, Portal } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
+import { useDms } from "@/feature/channel/hooks/useDms";
+import { useOpenDm } from "@/feature/channel/hooks/useOpenDm";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { ChannelList } from "./ChannelList";
+import { DmItem } from "./DmItem";
 import { MemberList } from "./MemberList";
 import { CreateChannelDialog } from "./CreateChannelDialog";
 import { SidebarFooter } from "./SidebarFooter";
@@ -23,6 +26,8 @@ export function ChannelSidebar() {
   const { data: workspaces } = useWorkspaces();
   const { data: channels, isLoading } = useChannels(selectedWorkspaceId);
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
+  const { data: dms } = useDms(selectedWorkspaceId);
+  const { mutate: openDm } = useOpenDm(selectedWorkspaceId ?? 0);
   const { open, onOpen, onClose } = useDisclosure();
 
   const workspace = workspaces?.find((w) => w.id === selectedWorkspaceId);
@@ -56,9 +61,39 @@ export function ChannelSidebar() {
         onAddClick={onOpen}
       />
 
+      {dms && dms.length > 0 && (
+        <Box borderTop="1px solid #16161F" flexShrink={0} py="8px">
+          <Text
+            color="rgba(244,244,246,0.3)"
+            fontSize="11px"
+            fontWeight="600"
+            letterSpacing="0.08em"
+            px="16px"
+            mb="2px"
+          >
+            DIRECT MESSAGES
+          </Text>
+          <VStack gap="1px" alignItems="stretch" px="6px">
+            {dms.map((dm) => (
+              <DmItem
+                key={dm.id}
+                dm={dm}
+                isSelected={dm.id === selectedChannelId}
+                onClick={() => selectChannel(dm.id)}
+              />
+            ))}
+          </VStack>
+        </Box>
+      )}
+
       {members && members.length > 0 && (
-        <Box borderTop="1px solid #16161F" maxH="180px" overflow="auto" flexShrink={0}>
-          <MemberList members={members} />
+        <Box borderTop="1px solid #16161F" maxH="160px" overflow="auto" flexShrink={0}>
+          <MemberList
+            members={members}
+            onStartDm={(userId) =>
+              openDm(userId, { onSuccess: (dm) => selectChannel(dm.id) })
+            }
+          />
         </Box>
       )}
 

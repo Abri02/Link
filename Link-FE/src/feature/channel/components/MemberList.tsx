@@ -4,9 +4,10 @@ import type { MemberDetail } from "@/feature/workspace/api/workspace.types";
 
 interface Props {
   members: MemberDetail[];
+  onStartDm?: (userId: number) => void;
 }
 
-export function MemberList({ members }: Props) {
+export function MemberList({ members, onStartDm }: Props) {
   const onlineIds = usePresenceStore((s) => s.onlineIds);
 
   if (members.length === 0) return null;
@@ -28,12 +29,16 @@ export function MemberList({ members }: Props) {
         return (
           <HStack
             key={m.userId}
+            as={onStartDm ? "button" : "div"}
             gap="8px"
             px="12px"
             py="3px"
             borderRadius="6px"
             mx="6px"
+            w="calc(100% - 12px)"
             _hover={{ bg: "rgba(255,255,255,0.04)" }}
+            onClick={() => onStartDm?.(m.userId)}
+            cursor={onStartDm ? "pointer" : "default"}
           >
             <Box
               w="8px"

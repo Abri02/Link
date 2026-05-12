@@ -2,6 +2,7 @@ package com.github.abri02.link.messaging.workspace
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 interface MemberWithUsername {
@@ -29,5 +30,5 @@ interface WorkspaceMemberRepository : JpaRepository<WorkspaceMember, Long> {
         JOIN auth.auth_user u ON u.id = wm.user_id
         WHERE wm.workspace_id = :workspaceId
     """, nativeQuery = true)
-    fun findMembersWithUsernameByWorkspaceId(workspaceId: Long): List<MemberWithUsername>
+    fun findMembersWithUsernameByWorkspaceId(@Param("workspaceId") workspaceId: Long): List<MemberWithUsername>
 }

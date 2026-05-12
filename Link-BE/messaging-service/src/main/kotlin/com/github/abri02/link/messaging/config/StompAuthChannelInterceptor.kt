@@ -75,7 +75,11 @@ class StompAuthChannelInterceptor(
     private fun publishOffline(sessionId: String?) {
         sessionId?.let { sid ->
             sessionStore.remove(sid)?.let { (userId, _) ->
-                broker.convertAndSend("/topic/presence", PresenceEvent(userId, online = false))
+                // Only broadcast offline if this was the user's last active session.
+                val stillConnected = sessionStore.values.any { it.first == userId }
+                if (!stillConnected) {
+                    broker.convertAndSend("/topic/presence", PresenceEvent(userId, online = false))
+                }
             }
         }
     }
