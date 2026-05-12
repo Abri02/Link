@@ -4,6 +4,7 @@ interface PresenceState {
   onlineIds: Set<number>;
   setOnline: (id: number) => void;
   setOffline: (id: number) => void;
+  bulkSetOnline: (ids: number[]) => void;
 }
 
 export const usePresenceStore = create<PresenceState>((set) => ({
@@ -15,4 +16,5 @@ export const usePresenceStore = create<PresenceState>((set) => ({
       next.delete(id);
       return { onlineIds: next };
     }),
+  bulkSetOnline: (ids) => set({ onlineIds: new Set(ids) }),
 }));
