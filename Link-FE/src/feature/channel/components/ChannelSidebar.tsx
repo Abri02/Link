@@ -3,7 +3,9 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
+import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { ChannelList } from "./ChannelList";
+import { MemberList } from "./MemberList";
 import { CreateChannelDialog } from "./CreateChannelDialog";
 import { SidebarFooter } from "./SidebarFooter";
 
@@ -20,6 +22,7 @@ export function ChannelSidebar() {
   const selectChannel = useWorkspaceStore((s) => s.selectChannel);
   const { data: workspaces } = useWorkspaces();
   const { data: channels, isLoading } = useChannels(selectedWorkspaceId);
+  const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
   const { open, onOpen, onClose } = useDisclosure();
 
   const workspace = workspaces?.find((w) => w.id === selectedWorkspaceId);
@@ -52,6 +55,12 @@ export function ChannelSidebar() {
         onSelect={selectChannel}
         onAddClick={onOpen}
       />
+
+      {members && members.length > 0 && (
+        <Box borderTop="1px solid #16161F" maxH="180px" overflow="auto" flexShrink={0}>
+          <MemberList members={members} />
+        </Box>
+      )}
 
       <SidebarFooter />
 

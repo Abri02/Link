@@ -4,6 +4,12 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
+interface MemberWithUsername {
+    fun getUserId(): Long
+    fun getUsername(): String
+    fun getRole(): String
+}
+
 @Repository
 interface WorkspaceRepository : JpaRepository<Workspace, Long> {
     fun existsBySlug(slug: String): Boolean
@@ -16,4 +22,12 @@ interface WorkspaceMemberRepository : JpaRepository<WorkspaceMember, Long> {
 
     @Query("SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId")
     fun findWorkspaceIdsByUserId(userId: Long): List<Long>
+
+    @Query(value = """
+        SELECT wm.user_id, u.username, wm.role
+        FROM messaging.workspace_member wm
+        JOIN auth.auth_user u ON u.id = wm.user_id
+        WHERE wm.workspace_id = :workspaceId
+    """, nativeQuery = true)
+    fun findMembersWithUsernameByWorkspaceId(workspaceId: Long): List<MemberWithUsername>
 }

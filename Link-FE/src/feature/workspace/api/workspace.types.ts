@@ -20,3 +20,9 @@ export interface WorkspaceMember {
   userId: number;
   role: string;
 }
+
+export interface MemberDetail {
+  userId: number;
+  username: string;
+  role: string;
+}
