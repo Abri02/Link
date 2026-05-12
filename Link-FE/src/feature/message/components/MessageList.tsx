@@ -2,14 +2,16 @@ import { Box, VStack, Text, Spinner } from "@chakra-ui/react";
 import { Hash } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Message } from "../api/message.types";
+import type { MemberDetail } from "@/feature/workspace/api/workspace.types";
 import { MessageRow } from "./MessageRow";
 
 interface Props {
   messages: Message[] | undefined;
   isLoading: boolean;
+  members: MemberDetail[];
 }
 
-export function MessageList({ messages, isLoading }: Props) {
+export function MessageList({ messages, isLoading, members }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,6 +41,7 @@ export function MessageList({ messages, isLoading }: Props) {
             key={msg.id}
             message={msg}
             prevAuthorId={messages[i - 1]?.authorId}
+            authorUsername={members.find((m) => m.userId === msg.authorId)?.username ?? `User ${msg.authorId}`}
           />
         ))}
       </VStack>

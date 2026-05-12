@@ -520,10 +520,10 @@ npx playwright test
 
 ### Phase 1 — Week 3 (Realtime + demo)
 
-- [ ] **Day 15** — WebSocket in `messaging-service`: STOMP endpoint, JWT auth on WS handshake.
-- [ ] **Day 16** — Publish on send: `POST /channels/{id}/messages` broadcasts to `/topic/channel.{id}`.
-- [ ] **Day 17** — Frontend WS client: `@stomp/stompjs`, subscribe on channel mount, append to React Query cache.
-- [ ] **Day 18** — Presence: `user-service` tracks online status on WS connect/disconnect.
+- [x] **Day 15** — WebSocket in `messaging-service`: STOMP endpoint, JWT auth on WS handshake.
+- [x] **Day 16** — Publish on send: `POST /channels/{id}/messages` broadcasts to `/topic/channel.{id}`.
+- [x] **Day 17** — Frontend WS client: `@stomp/stompjs`, subscribe on channel mount, append to React Query cache.
+- [x] **Day 18** — Presence: `messaging-service` publishes presence events on WS connect/disconnect; frontend presence store + dots in sidebar and message rows.
 - [ ] **Day 19** — Demo polish: avatars, timestamps, message grouping, Chakra theme, logout button.
 - [ ] **Day 20** — Demo dry run: `docker compose down -v && docker compose up`, full script end-to-end.
 - [ ] **Day 21** — Buffer.

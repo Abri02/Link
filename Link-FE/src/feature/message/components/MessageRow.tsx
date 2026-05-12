@@ -1,4 +1,5 @@
 import { Box, VStack, HStack, Text } from "@chakra-ui/react";
+import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import type { Message } from "../api/message.types";
 
 function formatTime(iso: string) {
@@ -8,9 +9,11 @@ function formatTime(iso: string) {
 interface Props {
   message: Message;
   prevAuthorId?: number;
+  authorUsername: string;
 }
 
-export function MessageRow({ message, prevAuthorId }: Props) {
+export function MessageRow({ message, prevAuthorId, authorUsername }: Props) {
+  const isOnline = usePresenceStore((s) => s.onlineIds.has(message.authorId));
   if (prevAuthorId === message.authorId) {
     return (
       <HStack gap="0" alignItems="flex-start" pl="48px" pr="16px" _hover={{ bg: "#0E0E18" }} py="1px">
@@ -23,25 +26,37 @@ export function MessageRow({ message, prevAuthorId }: Props) {
 
   return (
     <HStack gap="10px" alignItems="flex-start" px="16px" pt="8px" _hover={{ bg: "#0E0E18" }} py="4px">
-      <Box
-        w="32px"
-        h="32px"
-        borderRadius="8px"
-        bg="#22222E"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        flexShrink={0}
-        mt="2px"
-      >
-        <Text fontSize="12px" fontWeight="700" color="#6C63FF">
-          {String(message.authorId).slice(-2)}
-        </Text>
+      <Box position="relative" flexShrink={0} mt="2px">
+        <Box
+          w="32px"
+          h="32px"
+          borderRadius="8px"
+          bg="#22222E"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Text fontSize="12px" fontWeight="700" color="#6C63FF">
+            {authorUsername.slice(0, 2).toUpperCase()}
+          </Text>
+        </Box>
+        {isOnline && (
+          <Box
+            position="absolute"
+            bottom="-2px"
+            right="-2px"
+            w="9px"
+            h="9px"
+            borderRadius="full"
+            bg="#22C55E"
+            border="2px solid #0A0A10"
+          />
+        )}
       </Box>
       <VStack gap="0" alignItems="flex-start" flex="1" minW="0">
         <HStack gap="8px">
           <Text color="#F4F4F6" fontSize="14px" fontWeight="600">
-            User {message.authorId}
+            {authorUsername}
           </Text>
           <Text color="rgba(244,244,246,0.35)" fontSize="11px">
             {formatTime(message.createdAt)}

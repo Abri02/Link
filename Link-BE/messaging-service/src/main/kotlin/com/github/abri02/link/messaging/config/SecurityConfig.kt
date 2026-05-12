@@ -16,7 +16,10 @@ class SecurityConfig {
         http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { auth -> auth.anyRequest().authenticated() }
+            .authorizeHttpRequests { auth ->
+                auth.requestMatchers("/ws/**").permitAll()
+                auth.anyRequest().authenticated()
+            }
             .oauth2ResourceServer { oauth2 -> oauth2.jwt { } }
         return http.build()
     }

@@ -35,6 +35,12 @@ data class WorkspaceMemberResponse(
     val role: String
 )
 
+data class MemberDetailResponse(
+    val userId: Long,
+    val username: String,
+    val role: String
+)
+
 data class ErrorResponse(val message: String)
 
 @RestController
@@ -124,6 +130,20 @@ class WorkspaceController(
 
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(WorkspaceMemberResponse(newMember.workspaceId, newMember.userId, newMember.role.name))
+    }
+
+    @GetMapping("/{id}/members")
+    fun listMembers(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: Long
+    ): ResponseEntity<*> {
+        val callerId = jwt.subject.toLong()
+        if (!members.existsByWorkspaceIdAndUserId(id, callerId))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse("Not a member of this workspace"))
+
+        val result = members.findMembersWithUsernameByWorkspaceId(id)
+        return ResponseEntity.ok(result.map { MemberDetailResponse(it.getUserId(), it.getUsername(), it.getRole()) })
     }
 
     private fun Workspace.toResponse() = WorkspaceResponse(id!!, name, slug, ownerId, createdAt)

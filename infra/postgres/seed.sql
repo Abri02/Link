@@ -19,8 +19,8 @@ BEGIN
   END IF;
 
   -- workspace
-  INSERT INTO messaging.workspace (name, slug, owner_id)
-  VALUES ('Link HQ', 'link-hq', user1_id)
+  INSERT INTO messaging.workspace (name, slug, owner_id, created_at)
+  VALUES ('Link HQ', 'link-hq', user1_id, NOW())
   ON CONFLICT (slug) DO NOTHING
   RETURNING id INTO ws_id;
 
@@ -30,19 +30,25 @@ BEGIN
 
   -- workspace members
   INSERT INTO messaging.workspace_member (workspace_id, user_id, role)
-  VALUES (ws_id, user1_id, 'OWNER')
-  ON CONFLICT (workspace_id, user_id) DO NOTHING;
+  SELECT ws_id, user1_id, 'OWNER'
+  WHERE NOT EXISTS (
+    SELECT 1 FROM messaging.workspace_member WHERE workspace_id = ws_id AND user_id = user1_id
+  );
 
   IF user2_id IS NOT NULL THEN
     INSERT INTO messaging.workspace_member (workspace_id, user_id, role)
-    VALUES (ws_id, user2_id, 'MEMBER')
-    ON CONFLICT (workspace_id, user_id) DO NOTHING;
+    SELECT ws_id, user2_id, 'MEMBER'
+    WHERE NOT EXISTS (
+      SELECT 1 FROM messaging.workspace_member WHERE workspace_id = ws_id AND user_id = user2_id
+    );
   END IF;
 
   -- general channel
-  INSERT INTO messaging.channel (workspace_id, name, kind, created_by)
-  VALUES (ws_id, 'general', 'PUBLIC', user1_id)
-  ON CONFLICT (workspace_id, name) DO NOTHING
+  INSERT INTO messaging.channel (workspace_id, name, kind, created_by, created_at)
+  SELECT ws_id, 'general', 'PUBLIC', user1_id, NOW()
+  WHERE NOT EXISTS (
+    SELECT 1 FROM messaging.channel WHERE workspace_id = ws_id AND name = 'general'
+  )
   RETURNING id INTO ch_id;
 
   IF ch_id IS NULL THEN
@@ -51,13 +57,17 @@ BEGIN
 
   -- channel members
   INSERT INTO messaging.channel_member (channel_id, user_id)
-  VALUES (ch_id, user1_id)
-  ON CONFLICT (channel_id, user_id) DO NOTHING;
+  SELECT ch_id, user1_id
+  WHERE NOT EXISTS (
+    SELECT 1 FROM messaging.channel_member WHERE channel_id = ch_id AND user_id = user1_id
+  );
 
   IF user2_id IS NOT NULL THEN
     INSERT INTO messaging.channel_member (channel_id, user_id)
-    VALUES (ch_id, user2_id)
-    ON CONFLICT (channel_id, user_id) DO NOTHING;
+    SELECT ch_id, user2_id
+    WHERE NOT EXISTS (
+      SELECT 1 FROM messaging.channel_member WHERE channel_id = ch_id AND user_id = user2_id
+    );
   END IF;
 
   -- seed messages

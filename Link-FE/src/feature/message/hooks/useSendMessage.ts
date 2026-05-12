@@ -1,11 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { sendMessage } from "../api/message.api";
-import { messageKeys } from "../api/message.api.keys";
 
-export const useSendMessage = (channelId: number) => {
-  const queryClient = useQueryClient();
-  return useMutation({
+export const useSendMessage = (channelId: number) =>
+  useMutation({
     mutationFn: (body: string) => sendMessage(channelId, { body }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: messageKeys.byChannel(channelId) }),
   });
-};

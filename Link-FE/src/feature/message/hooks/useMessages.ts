@@ -7,5 +7,4 @@ export const useMessages = (channelId: number | null) =>
     queryKey: messageKeys.byChannel(channelId!),
     queryFn: () => listMessages(channelId!),
     enabled: channelId != null,
-    refetchInterval: 3000,
   });
