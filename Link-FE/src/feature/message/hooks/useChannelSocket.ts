@@ -1,8 +1,8 @@
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { API_URL } from "@/util/constants";
+import { WS_URL } from "@/util/constants";
+import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { messageKeys } from "../api/message.api.keys";
 import type { Message } from "../api/message.types";
 
@@ -12,8 +12,10 @@ export function useChannelSocket(channelId: number | null) {
   useEffect(() => {
     if (channelId == null) return;
 
+    const { setOnline, setOffline } = usePresenceStore.getState();
+
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${API_URL}/ws`),
+      brokerURL: WS_URL,
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe(`/topic/channel.${channelId}`, (frame) => {
@@ -22,6 +24,12 @@ export function useChannelSocket(channelId: number | null) {
             messageKeys.byChannel(channelId),
             (old: Message[] | undefined) => (old ? [...old, message] : [message])
           );
+        });
+
+        client.subscribe("/topic/presence", (frame) => {
+          const event: { userId: number; online: boolean } = JSON.parse(frame.body);
+          if (event.online) setOnline(event.userId);
+          else setOffline(event.userId);
         });
       },
     });

@@ -18,7 +18,6 @@ class WebSocketConfig(
         registry.addEndpoint("/ws")
             .setAllowedOriginPatterns("*")
             .addInterceptors(jwtHandshakeInterceptor)
-            .withSockJS()
     }
 
     override fun configureMessageBroker(config: MessageBrokerRegistry) {
