@@ -27,7 +27,8 @@ data class MessageResponse(
     val body: String,
     val createdAt: Instant,
     val editedAt: Instant?,
-    val parentMessageId: Long?
+    val parentMessageId: Long?,
+    val reactions: Map<String, List<Long>> = emptyMap()
 )
 
 data class NotificationEvent(
@@ -44,6 +45,7 @@ class MessageController(
     private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository,
     private val messages: MessageRepository,
+    private val reactions: MessageReactionRepository,
     private val broker: SimpMessagingTemplate
 ) {
 
@@ -115,8 +117,13 @@ class MessageController(
                 messages.findByChannelIdAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, page)
         }
 
-        return ResponseEntity.ok(result.reversed().map { it.toResponse() })
+        val ordered = result.reversed()
+        val reactionsByMessage = reactions.findByMessageIdIn(ordered.map { it.id!! })
+            .groupBy { it.messageId }
+            .mapValues { (_, rxns) -> rxns.groupBy({ it.emoji }, { it.userId }) }
+        return ResponseEntity.ok(ordered.map { it.toResponse(reactionsByMessage[it.id] ?: emptyMap()) })
     }
 
-    private fun Message.toResponse() = MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId)
+    private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap()) =
+        MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns)
 }
