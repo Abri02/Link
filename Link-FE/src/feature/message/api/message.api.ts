@@ -7,5 +7,10 @@ export const listMessages = (channelId: number, before?: number): Promise<Messag
   return apiClient(`/channels/${channelId}/messages?${params}`);
 };
 
+export const searchMessages = (channelId: number, q: string): Promise<Message[]> => {
+  const params = new URLSearchParams({ q, limit: "50" });
+  return apiClient(`/channels/${channelId}/messages?${params}`);
+};
+
 export const sendMessage = (channelId: number, data: SendMessageRequest): Promise<Message> =>
   apiClient(`/channels/${channelId}/messages`, { method: "POST", body: JSON.stringify(data) });

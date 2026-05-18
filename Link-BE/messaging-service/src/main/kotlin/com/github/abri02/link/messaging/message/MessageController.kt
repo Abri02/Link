@@ -90,7 +90,8 @@ class MessageController(
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable channelId: Long,
         @RequestParam(required = false) before: Long?,
-        @RequestParam(defaultValue = "50") limit: Int
+        @RequestParam(defaultValue = "50") limit: Int,
+        @RequestParam(required = false) q: String?
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
@@ -103,10 +104,15 @@ class MessageController(
         val pageSize = limit.coerceIn(1, 100)
         val page = PageRequest.of(0, pageSize)
 
-        val result = if (before != null) {
-            messages.findByChannelIdAndIdLessThanAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, before, page)
-        } else {
-            messages.findByChannelIdAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, page)
+        val result = when {
+            !q.isNullOrBlank() ->
+                messages.findByChannelIdAndBodyContainingIgnoreCaseAndDeletedAtIsNullOrderByCreatedAtDesc(
+                    channelId, q.trim(), page
+                )
+            before != null ->
+                messages.findByChannelIdAndIdLessThanAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, before, page)
+            else ->
+                messages.findByChannelIdAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, page)
         }
 
         return ResponseEntity.ok(result.reversed().map { it.toResponse() })
