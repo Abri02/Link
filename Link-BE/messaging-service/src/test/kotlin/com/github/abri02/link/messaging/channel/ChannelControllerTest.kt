@@ -1,8 +1,10 @@
 package com.github.abri02.link.messaging.channel
 
 import com.github.abri02.link.jwt.Claims
+import com.github.abri02.link.messaging.workspace.WorkspaceMember
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -45,6 +47,28 @@ class ChannelControllerTest {
     fun `create returns 403 when caller is not a workspace member`() {
         given(workspaces.existsById(1L)).willReturn(true)
         given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(false)
+
+        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `create returns 403 when caller is MEMBER role`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.MEMBER))
+
+        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `create returns 403 when caller is GUEST role`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.GUEST))
 
         val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)

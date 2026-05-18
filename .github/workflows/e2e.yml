@@ -29,6 +29,19 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "mc ready local || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -65,33 +78,35 @@ jobs:
       # ── Backend ───────────────────────────────────────────────────────
       - name: Build backend (skip tests)
         working-directory: Link-BE
-        run: ./gradlew :auth-service:bootJar :user-service:bootJar :messaging-service:bootJar :gateway:bootJar -x test --no-daemon
+        run: ./gradlew :auth-service:bootJar :user-service:bootJar :messaging-service:bootJar :file-service:bootJar :gateway:bootJar -x test --no-daemon
 
       - name: Start auth-service
         run: |
           JAR=$(find Link-BE/auth-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          echo "Starting auth-service: $JAR"
           java -jar "$JAR" >> /tmp/auth-service.log 2>&1 &
           echo $! > /tmp/auth-service.pid
 
       - name: Start user-service
         run: |
           JAR=$(find Link-BE/user-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          echo "Starting user-service: $JAR"
           java -jar "$JAR" >> /tmp/user-service.log 2>&1 &
           echo $! > /tmp/user-service.pid
 
       - name: Start messaging-service
         run: |
           JAR=$(find Link-BE/messaging-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          echo "Starting messaging-service: $JAR"
           java -jar "$JAR" >> /tmp/messaging-service.log 2>&1 &
           echo $! > /tmp/messaging-service.pid
+
+      - name: Start file-service
+        run: |
+          JAR=$(find Link-BE/file-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          java -jar "$JAR" >> /tmp/file-service.log 2>&1 &
+          echo $! > /tmp/file-service.pid
 
       - name: Start gateway
         run: |
           JAR=$(find Link-BE/gateway/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          echo "Starting gateway: $JAR"
           java -jar "$JAR" >> /tmp/gateway.log 2>&1 &
           echo $! > /tmp/gateway.pid
 
@@ -113,13 +128,15 @@ jobs:
             return 1
           }
 
-          wait_for_port 8081 auth-service || { cat /tmp/auth-service.log; exit 1; }
-          wait_for_port 8082 user-service || { cat /tmp/user-service.log; exit 1; }
+          wait_for_port 8081 auth-service    || { cat /tmp/auth-service.log;    exit 1; }
+          wait_for_port 8082 user-service    || { cat /tmp/user-service.log;    exit 1; }
           wait_for_port 8083 messaging-service || { cat /tmp/messaging-service.log; exit 1; }
-          wait_for_port 8080 gateway || {
+          wait_for_port 8084 file-service    || { cat /tmp/file-service.log;    exit 1; }
+          wait_for_port 8080 gateway         || {
             echo "=== auth-service ===" && cat /tmp/auth-service.log || true
             echo "=== user-service ===" && cat /tmp/user-service.log || true
             echo "=== messaging-service ===" && cat /tmp/messaging-service.log || true
+            echo "=== file-service ===" && cat /tmp/file-service.log || true
             echo "=== gateway ===" && cat /tmp/gateway.log || true
             exit 1
           }
@@ -161,5 +178,6 @@ jobs:
             /tmp/auth-service.log
             /tmp/user-service.log
             /tmp/messaging-service.log
+            /tmp/file-service.log
             /tmp/gateway.log
           retention-days: 3
