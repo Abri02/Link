@@ -46,7 +46,7 @@ class ChannelControllerTest {
     @Test
     fun `create returns 403 when caller is not a workspace member`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(false)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
 
         val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
@@ -55,7 +55,6 @@ class ChannelControllerTest {
     @Test
     fun `create returns 403 when caller is MEMBER role`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.MEMBER))
 
@@ -66,7 +65,6 @@ class ChannelControllerTest {
     @Test
     fun `create returns 403 when caller is GUEST role`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.GUEST))
 
@@ -77,7 +75,8 @@ class ChannelControllerTest {
     @Test
     fun `create returns 400 for blank channel name`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.ADMIN))
 
         val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("  "))
         assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
@@ -86,7 +85,8 @@ class ChannelControllerTest {
     @Test
     fun `create normalizes channel name to lowercase kebab-case`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.OWNER))
         given(channels.existsByWorkspaceIdAndName(1L, "my-alerts")).willReturn(false)
         given(channels.save(any<Channel>())).willReturn(buildChannel(1L, 1L, "my-alerts"))
 
@@ -100,7 +100,8 @@ class ChannelControllerTest {
     @Test
     fun `create returns 409 for duplicate channel name`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.ADMIN))
         given(channels.existsByWorkspaceIdAndName(1L, "general")).willReturn(true)
 
         val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("general"))
