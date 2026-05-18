@@ -18,5 +18,11 @@ export const addReaction = (messageId: number, emoji: string): Promise<void> =>
 export const removeReaction = (messageId: number, emoji: string): Promise<void> =>
   apiClient(`/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
 
+export const editMessage = (channelId: number, messageId: number, body: string): Promise<Message> =>
+  apiClient(`/channels/${channelId}/messages/${messageId}`, { method: "PATCH", body: JSON.stringify({ body }) });
+
+export const deleteMessage = (channelId: number, messageId: number): Promise<void> =>
+  apiClient(`/channels/${channelId}/messages/${messageId}`, { method: "DELETE" });
+
 export const sendMessage = (channelId: number, data: SendMessageRequest): Promise<Message> =>
   apiClient(`/channels/${channelId}/messages`, { method: "POST", body: JSON.stringify(data) });
