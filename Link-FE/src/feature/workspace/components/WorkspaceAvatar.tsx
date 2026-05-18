@@ -27,12 +27,12 @@ export function WorkspaceAvatar({ workspace, isSelected, onClick }: Props) {
         w="40px"
         h="40px"
         borderRadius={isSelected ? "12px" : "full"}
-        bg={isSelected ? "#6C63FF" : "#22222E"}
+        bg={isSelected ? "#6C63FF" : "#2E2E50"}
         display="flex"
         alignItems="center"
         justifyContent="center"
         transition="all 0.15s"
-        _hover={{ borderRadius: "12px", bg: isSelected ? "#6C63FF" : "#2E2E40" }}
+        _hover={{ borderRadius: "12px", bg: isSelected ? "#6C63FF" : "#3A3A60" }}
         outline="none"
         flexShrink={0}
       >

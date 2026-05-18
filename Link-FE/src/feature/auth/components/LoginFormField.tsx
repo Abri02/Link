@@ -59,7 +59,7 @@ export function LoginFormField({
           paddingLeft="42px"
           height="46px"
           background="#121219"
-          borderColor="#22222E"
+          borderColor="#2E2E50"
           color="#F4F4F6"
           fontSize="14px"
           borderRadius="9px"

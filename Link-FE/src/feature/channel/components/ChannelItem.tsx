@@ -20,9 +20,9 @@ export function ChannelItem({ channel, isSelected, onClick }: Props) {
       px="12px"
       py="5px"
       borderRadius="6px"
-      bg={isSelected ? "#1E1E2E" : "transparent"}
+      bg={isSelected ? "#2A2A48" : "transparent"}
       color={isSelected ? "#F4F4F6" : unread > 0 ? "#F4F4F6" : "rgba(244,244,246,0.55)"}
-      _hover={{ bg: "#1A1A28", color: "#F4F4F6" }}
+      _hover={{ bg: "#22223A", color: "#F4F4F6" }}
       transition="all 0.1s"
       gap="6px"
       outline="none"

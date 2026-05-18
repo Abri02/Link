@@ -27,8 +27,8 @@ export function CreateChannelDialog({ workspaceId, onClose }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. announcements"
-          bg="#0A0A10"
-          border="1px solid #22222E"
+          bg="#1C1C2E"
+          border="1px solid #2E2E50"
           color="#F4F4F6"
           _placeholder={{ color: "rgba(244,244,246,0.3)" }}
           _focus={{ borderColor: "#6C63FF", boxShadow: "none" }}

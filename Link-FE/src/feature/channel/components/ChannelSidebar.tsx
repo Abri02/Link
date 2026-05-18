@@ -16,8 +16,8 @@ import { SidebarFooter } from "./SidebarFooter";
 const SIDEBAR_STYLES = {
   w: "240px",
   minH: "100vh",
-  bg: "#0D0D15",
-  borderRight: "1px solid #16161F",
+  bg: "#1A1A2E",
+  borderRight: "1px solid #2A2A45",
 } as const;
 
 export function ChannelSidebar() {
@@ -50,7 +50,7 @@ export function ChannelSidebar() {
 
   return (
     <VStack {...SIDEBAR_STYLES} alignItems="stretch" gap="0">
-      <Box px="16px" py="14px" borderBottom="1px solid #16161F">
+      <Box px="16px" py="14px" borderBottom="1px solid #2A2A45">
         <Text color="#F4F4F6" fontWeight="600" fontSize="15px" truncate>
           {workspace?.name ?? ""}
         </Text>
@@ -66,7 +66,7 @@ export function ChannelSidebar() {
       />
 
       {dms && dms.length > 0 && (
-        <Box borderTop="1px solid #16161F" flexShrink={0} py="8px">
+        <Box borderTop="1px solid #2A2A45" flexShrink={0} py="8px">
           <Text
             color="rgba(244,244,246,0.3)"
             fontSize="11px"
@@ -91,7 +91,7 @@ export function ChannelSidebar() {
       )}
 
       {members && members.length > 0 && (
-        <Box borderTop="1px solid #16161F" maxH="160px" overflow="auto" flexShrink={0}>
+        <Box borderTop="1px solid #2A2A45" maxH="160px" overflow="auto" flexShrink={0}>
           <MemberList
             members={members}
             onStartDm={(userId) =>
@@ -107,7 +107,7 @@ export function ChannelSidebar() {
         <Portal>
           <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
           <Dialog.Positioner>
-            <Dialog.Content bg="#12121A" border="1px solid #22222E" borderRadius="12px" p="24px" maxW="360px" w="full">
+            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
               <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
                 New channel
               </Dialog.Title>

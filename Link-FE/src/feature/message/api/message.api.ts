@@ -26,3 +26,6 @@ export const deleteMessage = (channelId: number, messageId: number): Promise<voi
 
 export const sendMessage = (channelId: number, data: SendMessageRequest): Promise<Message> =>
   apiClient(`/channels/${channelId}/messages`, { method: "POST", body: JSON.stringify(data) });
+
+export const listThreadMessages = (channelId: number, parentMessageId: number): Promise<Message[]> =>
+  apiClient(`/channels/${channelId}/messages/${parentMessageId}/thread`);

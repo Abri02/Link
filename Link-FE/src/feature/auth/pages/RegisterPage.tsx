@@ -8,10 +8,10 @@ export function RegisterPage() {
       display="grid"
       gridTemplateColumns={{ base: "1fr", md: "44% 56%" }}
       minH="100vh"
-      bg="#0A0A10"
+      bg="#1C1C2E"
     >
       <LoginBrandPanel />
-      <Center p={{ base: "48px 24px", md: "52px" }} bg="#0A0A10">
+      <Center p={{ base: "48px 24px", md: "52px" }} bg="#1C1C2E">
         <Box className="link-form-enter" width="100%" display="flex" justifyContent="center">
           <RegisterForm />
         </Box>
