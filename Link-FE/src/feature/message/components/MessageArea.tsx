@@ -7,6 +7,7 @@ import { useChannelSocket } from "@/feature/message/hooks/useChannelSocket";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
+import { useMyWorkspaceRole } from "@/feature/workspace/hooks/useMyWorkspaceRole";
 import { MessageList } from "./MessageList";
 import { MessageComposer } from "./MessageComposer";
 
@@ -17,6 +18,9 @@ export function MessageArea() {
   const { data: messages, isLoading } = useMessages(selectedChannelId);
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
   useChannelSocket(selectedChannelId);
+
+  const role = useMyWorkspaceRole(selectedWorkspaceId);
+  const isGuest = role === "GUEST";
 
   const [searchQuery, setSearchQuery] = useState("");
   const isSearching = searchQuery.trim().length >= 2;
@@ -98,9 +102,17 @@ export function MessageArea() {
         <MessageList messages={messages} isLoading={isLoading} members={members ?? []} />
       )}
 
-      <Box w="full" borderTop="1px solid #16161F" flexShrink={0}>
-        <MessageComposer channelId={selectedChannelId} channelName={channel?.name ?? ""} />
-      </Box>
+      {isGuest ? (
+        <Box px="16px" py="12px" borderTop="1px solid #16161F" flexShrink={0}>
+          <Text color="rgba(244,244,246,0.3)" fontSize="13px" textAlign="center">
+            Guests can read but not post messages.
+          </Text>
+        </Box>
+      ) : (
+        <Box w="full" borderTop="1px solid #16161F" flexShrink={0}>
+          <MessageComposer channelId={selectedChannelId} channelName={channel?.name ?? ""} />
+        </Box>
+      )}
     </VStack>
   );
 }

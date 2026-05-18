@@ -6,6 +6,7 @@ import { useOpenDm } from "@/feature/channel/hooks/useOpenDm";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
+import { useMyWorkspaceRole } from "@/feature/workspace/hooks/useMyWorkspaceRole";
 import { ChannelList } from "./ChannelList";
 import { DmItem } from "./DmItem";
 import { MemberList } from "./MemberList";
@@ -29,6 +30,8 @@ export function ChannelSidebar() {
   const { data: dms } = useDms(selectedWorkspaceId);
   const { mutate: openDm } = useOpenDm(selectedWorkspaceId ?? 0);
   const { open, onOpen, onClose } = useDisclosure();
+  const role = useMyWorkspaceRole(selectedWorkspaceId);
+  const canCreate = role === "OWNER" || role === "ADMIN";
 
   const workspace = workspaces?.find((w) => w.id === selectedWorkspaceId);
 
@@ -59,6 +62,7 @@ export function ChannelSidebar() {
         selectedChannelId={selectedChannelId}
         onSelect={selectChannel}
         onAddClick={onOpen}
+        canCreate={canCreate}
       />
 
       {dms && dms.length > 0 && (

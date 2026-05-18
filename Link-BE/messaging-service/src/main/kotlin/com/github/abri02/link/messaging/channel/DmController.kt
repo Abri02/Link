@@ -2,6 +2,7 @@ package com.github.abri02.link.messaging.channel
 
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -44,8 +45,11 @@ class DmController(
         if (!workspaces.existsById(workspaceId))
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
 
-        if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, callerId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
+        val callerMember = workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, callerId)
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
+
+        if (callerMember.role == WorkspaceRole.GUEST)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Guests cannot open direct messages"))
 
         if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, req.targetUserId))
             return ResponseEntity.badRequest().body(ErrorResponse("Target user is not a member of this workspace"))
