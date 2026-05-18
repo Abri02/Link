@@ -5,6 +5,12 @@ import { WS_URL } from "@/util/constants";
 import { messageKeys } from "../api/message.api.keys";
 import type { Message } from "../api/message.types";
 
+interface ReactionUpdateEvent {
+  messageId: number;
+  channelId: number;
+  reactions: Record<string, number[]>;
+}
+
 export function useChannelSocket(channelId: number | null) {
   const queryClient = useQueryClient();
 
@@ -20,6 +26,15 @@ export function useChannelSocket(channelId: number | null) {
           queryClient.setQueryData(
             messageKeys.byChannel(channelId),
             (old: Message[] | undefined) => (old ? [...old, message] : [message])
+          );
+        });
+
+        client.subscribe(`/topic/reactions.${channelId}`, (frame) => {
+          const event: ReactionUpdateEvent = JSON.parse(frame.body);
+          queryClient.setQueryData<Message[]>(messageKeys.byChannel(channelId), (old) =>
+            old?.map((m) =>
+              m.id === event.messageId ? { ...m, reactions: event.reactions } : m
+            )
           );
         });
       },

@@ -12,5 +12,11 @@ export const searchMessages = (channelId: number, q: string): Promise<Message[]>
   return apiClient(`/channels/${channelId}/messages?${params}`);
 };
 
+export const addReaction = (messageId: number, emoji: string): Promise<void> =>
+  apiClient(`/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, { method: "POST" });
+
+export const removeReaction = (messageId: number, emoji: string): Promise<void> =>
+  apiClient(`/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, { method: "DELETE" });
+
 export const sendMessage = (channelId: number, data: SendMessageRequest): Promise<Message> =>
   apiClient(`/channels/${channelId}/messages`, { method: "POST", body: JSON.stringify(data) });
