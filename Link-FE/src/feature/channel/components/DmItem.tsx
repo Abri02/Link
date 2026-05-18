@@ -21,9 +21,9 @@ export function DmItem({ dm, isSelected, onClick }: Props) {
       px="12px"
       py="5px"
       borderRadius="6px"
-      bg={isSelected ? "#1E1E2E" : "transparent"}
+      bg={isSelected ? "#2A2A48" : "transparent"}
       color={isSelected ? "#F4F4F6" : "rgba(244,244,246,0.55)"}
-      _hover={{ bg: "#1A1A28", color: "#F4F4F6" }}
+      _hover={{ bg: "#22223A", color: "#F4F4F6" }}
       transition="all 0.1s"
       gap="8px"
       outline="none"
@@ -33,7 +33,7 @@ export function DmItem({ dm, isSelected, onClick }: Props) {
           w="20px"
           h="20px"
           borderRadius="4px"
-          bg="#22222E"
+          bg="#2E2E50"
           display="flex"
           alignItems="center"
           justifyContent="center"
@@ -50,7 +50,7 @@ export function DmItem({ dm, isSelected, onClick }: Props) {
           h="7px"
           borderRadius="full"
           bg={isOnline ? "#22C55E" : "rgba(244,244,246,0.15)"}
-          border="1.5px solid #0D0D15"
+          border="1.5px solid #1A1A2E"
         />
       </Box>
       <Text fontSize="14px" fontWeight={isSelected || unread > 0 ? "600" : "400"} truncate flex="1">

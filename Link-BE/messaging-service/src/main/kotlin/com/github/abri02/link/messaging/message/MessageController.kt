@@ -34,7 +34,8 @@ data class MessageResponse(
     val createdAt: Instant,
     val editedAt: Instant?,
     val parentMessageId: Long?,
-    val reactions: Map<String, List<Long>> = emptyMap()
+    val reactions: Map<String, List<Long>> = emptyMap(),
+    val replyCount: Int = 0
 )
 
 data class NotificationEvent(
@@ -87,13 +88,16 @@ class MessageController(
             )
         )
         val response = message.toResponse()
-        broker.convertAndSend("/topic/channel.$channelId", response)
-
-        val preview = response.body.take(100)
-        val notification = NotificationEvent(channelId, userId, preview)
-        channelMembers.findByChannelId(channelId)
-            .filter { it.userId != userId }
-            .forEach { broker.convertAndSendToUser(it.userId.toString(), "/queue/notifications", notification) }
+        if (message.parentMessageId == null) {
+            broker.convertAndSend("/topic/channel.$channelId", response)
+            val preview = response.body.take(100)
+            val notification = NotificationEvent(channelId, userId, preview)
+            channelMembers.findByChannelId(channelId)
+                .filter { it.userId != userId }
+                .forEach { broker.convertAndSendToUser(it.userId.toString(), "/queue/notifications", notification) }
+        } else {
+            broker.convertAndSend("/topic/thread.${message.parentMessageId}", response)
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
@@ -119,20 +123,47 @@ class MessageController(
 
         val result = when {
             !q.isNullOrBlank() ->
-                messages.findByChannelIdAndBodyContainingIgnoreCaseAndDeletedAtIsNullOrderByCreatedAtDesc(
+                messages.findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
                     channelId, q.trim(), page
                 )
             before != null ->
-                messages.findByChannelIdAndIdLessThanAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, before, page)
+                messages.findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, before, page)
             else ->
-                messages.findByChannelIdAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, page)
+                messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, page)
         }
 
         val ordered = result.reversed()
         val reactionsByMessage = reactions.findByMessageIdIn(ordered.map { it.id!! })
             .groupBy { it.messageId }
             .mapValues { (_, rxns) -> rxns.groupBy({ it.emoji }, { it.userId }) }
-        return ResponseEntity.ok(ordered.map { it.toResponse(reactionsByMessage[it.id] ?: emptyMap()) })
+        val topLevelIds = ordered.filter { it.parentMessageId == null }.mapNotNull { it.id }
+        val replyCounts = if (topLevelIds.isNotEmpty())
+            messages.countRepliesByParentIds(topLevelIds).associate { it.getParentMessageId() to it.getCount().toInt() }
+        else emptyMap()
+        return ResponseEntity.ok(ordered.map {
+            it.toResponse(reactionsByMessage[it.id] ?: emptyMap(), replyCounts[it.id] ?: 0)
+        })
+    }
+
+    @GetMapping("/{messageId}/thread")
+    fun thread(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable channelId: Long,
+        @PathVariable messageId: Long
+    ): ResponseEntity<*> {
+        val userId = jwt.subject.toLong()
+
+        if (!channels.existsById(channelId))
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Channel not found"))
+
+        if (!channelMembers.existsByChannelIdAndUserId(channelId, userId))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+
+        val replies = messages.findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(messageId)
+        val reactionsByMessage = reactions.findByMessageIdIn(replies.map { it.id!! })
+            .groupBy { it.messageId }
+            .mapValues { (_, rxns) -> rxns.groupBy({ it.emoji }, { it.userId }) }
+        return ResponseEntity.ok(replies.map { it.toResponse(reactionsByMessage[it.id] ?: emptyMap()) })
     }
 
     @PatchMapping("/{messageId}")
@@ -186,6 +217,6 @@ class MessageController(
         return ResponseEntity.noContent().build<Unit>()
     }
 
-    private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap()) =
-        MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns)
+    private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap(), replyCount: Int = 0) =
+        MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns, replyCount)
 }

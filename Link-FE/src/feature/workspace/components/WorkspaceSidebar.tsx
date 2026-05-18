@@ -17,8 +17,8 @@ export function WorkspaceSidebar() {
     <VStack
       w="64px"
       minH="100vh"
-      bg="#0A0A10"
-      borderRight="1px solid #16161F"
+      bg="#1C1C2E"
+      borderRight="1px solid #2A2A45"
       pt="12px"
       pb="12px"
       gap="8px"
@@ -44,7 +44,7 @@ export function WorkspaceSidebar() {
             h="40px"
             borderRadius="full"
             bg="transparent"
-            border="1px dashed #2E2E40"
+            border="1px dashed #3A3A60"
             color="rgba(244,244,246,0.4)"
             _hover={{ borderColor: "#6C63FF", color: "#6C63FF" }}
             aria-label="Create workspace"
@@ -58,7 +58,7 @@ export function WorkspaceSidebar() {
         <Portal>
           <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
           <Dialog.Positioner>
-            <Dialog.Content bg="#12121A" border="1px solid #22222E" borderRadius="12px" p="24px" maxW="360px" w="full">
+            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
               <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
                 New workspace
               </Dialog.Title>

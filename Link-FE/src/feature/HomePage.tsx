@@ -10,7 +10,7 @@ export function HomePage() {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <Center minH="100vh" bg="#0A0A10" flexDirection="column" gap="12px">
+    <Center minH="100vh" bg="#1C1C2E" flexDirection="column" gap="12px">
       <Text color="#F4F4F6" fontSize="lg" fontWeight="600">
         {user?.username ?? ""}
       </Text>
@@ -20,7 +20,7 @@ export function HomePage() {
         height="40px"
         px="20px"
         background="transparent"
-        border="1px solid #22222E"
+        border="1px solid #2E2E50"
         color="rgba(244,244,246,0.6)"
         fontSize="13px"
         borderRadius="8px"

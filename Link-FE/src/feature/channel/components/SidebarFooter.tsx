@@ -12,7 +12,7 @@ export function SidebarFooter() {
   const isOnline = usePresenceStore((s) => user != null && s.onlineIds.has(user.id));
 
   return (
-    <Box px="12px" py="10px" borderTop="1px solid #16161F">
+    <Box px="12px" py="10px" borderTop="1px solid #2A2A45">
       <HStack justify="space-between">
         <HStack gap="6px" minW="0">
           <Box position="relative" flexShrink={0}>

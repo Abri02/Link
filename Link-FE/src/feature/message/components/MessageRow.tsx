@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, VStack, HStack, Text, Button, Popover, Portal, IconButton, Menu, Input } from "@chakra-ui/react";
-import { Smile, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Smile, MoreHorizontal, Pencil, Trash2, MessageSquare } from "lucide-react";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
+import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useToggleReaction } from "../hooks/useToggleReaction";
 import { useEditMessage } from "../hooks/useEditMessage";
 import { useDeleteMessage } from "../hooks/useDeleteMessage";
@@ -43,13 +44,13 @@ function ReactionArea({ message }: { message: Message }) {
             key={emoji}
             size="xs"
             variant="outline"
-            borderColor={hasReacted ? "#6C63FF" : "#2A2A38"}
-            bg={hasReacted ? "#1E1E3A" : "#16161F"}
+            borderColor={hasReacted ? "#6C63FF" : "#38385E"}
+            bg={hasReacted ? "#2A2A55" : "#2A2A45"}
             color="#F4F4F6"
             fontSize="12px"
             h="22px"
             px="6px"
-            _hover={{ borderColor: "#6C63FF", bg: "#1E1E2E" }}
+            _hover={{ borderColor: "#6C63FF", bg: "#2A2A48" }}
             onClick={() => toggle(emoji)}
           >
             {emoji} {userIds.length}
@@ -63,7 +64,7 @@ function ReactionArea({ message }: { message: Message }) {
             size="xs"
             variant="ghost"
             color="rgba(244,244,246,0.3)"
-            _hover={{ color: "#F4F4F6", bg: "#1E1E2E" }}
+            _hover={{ color: "#F4F4F6", bg: "#2A2A48" }}
             h="22px"
             w="22px"
             minW="0"
@@ -74,7 +75,7 @@ function ReactionArea({ message }: { message: Message }) {
         </Popover.Trigger>
         <Portal>
           <Popover.Positioner>
-            <Popover.Content bg="#1A1A26" border="1px solid #2A2A38" borderRadius="8px" p="6px" w="auto">
+            <Popover.Content bg="#22223A" border="1px solid #38385E" borderRadius="8px" p="6px" w="auto">
               <HStack gap="4px">
                 {EMOJI_PICKER.map((emoji) => (
                   <Button
@@ -86,7 +87,7 @@ function ReactionArea({ message }: { message: Message }) {
                     w="28px"
                     minW="0"
                     p="0"
-                    _hover={{ bg: "#2A2A38" }}
+                    _hover={{ bg: "#38385E" }}
                     onClick={() => { toggle(emoji); setPickerOpen(false); }}
                   >
                     {emoji}
@@ -103,18 +104,37 @@ function ReactionArea({ message }: { message: Message }) {
 
 function MessageActions({ message, onEdit }: { message: Message; onEdit: () => void }) {
   const currentUserId = useAuthStore((s) => s.user?.id);
+  const openThread = useWorkspaceStore((s) => s.openThread);
   const { mutate: deleteMsg } = useDeleteMessage(message.channelId);
 
-  if (message.authorId !== currentUserId) return null;
+  const isAuthor = message.authorId === currentUserId;
+  const isReply = message.parentMessageId != null;
 
   return (
-    <Menu.Root>
+    <HStack gap="2px">
+      {!isReply && (
+        <IconButton
+          size="xs"
+          variant="ghost"
+          color="rgba(244,244,246,0.3)"
+          _hover={{ color: "#F4F4F6", bg: "#2A2A48" }}
+          aria-label="Reply in thread"
+          h="22px"
+          w="22px"
+          minW="0"
+          onClick={() => openThread(message.id)}
+        >
+          <MessageSquare size={13} />
+        </IconButton>
+      )}
+      {isAuthor && (
+      <Menu.Root>
       <Menu.Trigger asChild>
         <IconButton
           size="xs"
           variant="ghost"
           color="rgba(244,244,246,0.3)"
-          _hover={{ color: "#F4F4F6", bg: "#1E1E2E" }}
+          _hover={{ color: "#F4F4F6", bg: "#2A2A48" }}
           aria-label="Message actions"
           h="22px"
           w="22px"
@@ -125,13 +145,13 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
-          <Menu.Content bg="#1A1A26" border="1px solid #2A2A38" borderRadius="8px" p="4px" minW="120px">
+          <Menu.Content bg="#22223A" border="1px solid #38385E" borderRadius="8px" p="4px" minW="120px">
             <Menu.Item
               value="edit"
               color="#F4F4F6"
               fontSize="13px"
               borderRadius="4px"
-              _hover={{ bg: "#2A2A38" }}
+              _hover={{ bg: "#38385E" }}
               cursor="pointer"
               onClick={onEdit}
             >
@@ -145,7 +165,7 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
               color="#FF6B6B"
               fontSize="13px"
               borderRadius="4px"
-              _hover={{ bg: "#2A2A38" }}
+              _hover={{ bg: "#38385E" }}
               cursor="pointer"
               onClick={() => deleteMsg(message.id)}
             >
@@ -158,6 +178,8 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
         </Menu.Positioner>
       </Portal>
     </Menu.Root>
+      )}
+    </HStack>
   );
 }
 
@@ -192,7 +214,7 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
             if (e.key === "Escape") setEditing(false);
           }}
           size="sm"
-          bg="#16161F"
+          bg="#2A2A45"
           border="1px solid #6C63FF"
           color="#F4F4F6"
           fontSize="14px"
@@ -213,6 +235,9 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
     );
   }
 
+  const openThread = useWorkspaceStore((s) => s.openThread);
+  const hasThread = message.parentMessageId == null && message.replyCount > 0;
+
   return (
     <HStack
       gap="6px"
@@ -231,6 +256,23 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
           )}
         </HStack>
         <ReactionArea message={message} />
+        {hasThread && (
+          <Button
+            size="xs"
+            variant="ghost"
+            color="#7C74FF"
+            fontSize="12px"
+            fontWeight="500"
+            h="20px"
+            px="6px"
+            mt="2px"
+            borderRadius="4px"
+            _hover={{ bg: "#2A2A48", color: "#9B94FF" }}
+            onClick={() => openThread(message.id)}
+          >
+            {message.replyCount} {message.replyCount === 1 ? "reply" : "replies"}
+          </Button>
+        )}
       </VStack>
       {hovered && (
         <Box flexShrink={0}>
@@ -246,20 +288,20 @@ export function MessageRow({ message, prevAuthorId, authorUsername }: Props) {
 
   if (prevAuthorId === message.authorId) {
     return (
-      <Box pl="48px" pr="16px" _hover={{ bg: "#0E0E18" }} py="1px">
+      <Box pl="48px" pr="16px" _hover={{ bg: "#25253E" }} py="1px">
         <MessageBody message={message} isGrouped />
       </Box>
     );
   }
 
   return (
-    <HStack gap="10px" alignItems="flex-start" px="16px" pt="8px" _hover={{ bg: "#0E0E18" }} py="4px">
+    <HStack gap="10px" alignItems="flex-start" px="16px" pt="8px" _hover={{ bg: "#25253E" }} py="4px">
       <Box position="relative" flexShrink={0} mt="2px">
         <Box
           w="32px"
           h="32px"
           borderRadius="8px"
-          bg="#22222E"
+          bg="#2E2E50"
           display="flex"
           alignItems="center"
           justifyContent="center"
@@ -277,7 +319,7 @@ export function MessageRow({ message, prevAuthorId, authorUsername }: Props) {
             h="9px"
             borderRadius="full"
             bg="#22C55E"
-            border="2px solid #0A0A10"
+            border="2px solid #1C1C2E"
           />
         )}
       </Box>

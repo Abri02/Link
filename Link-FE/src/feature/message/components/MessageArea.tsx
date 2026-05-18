@@ -30,7 +30,7 @@ export function MessageArea() {
 
   if (!selectedWorkspaceId) {
     return (
-      <Box flex="1" display="flex" alignItems="center" justifyContent="center" bg="#0A0A10">
+      <Box flex="1" display="flex" alignItems="center" justifyContent="center" bg="#1C1C2E">
         <Text color="rgba(244,244,246,0.3)" fontSize="15px">
           Select a workspace to get started
         </Text>
@@ -40,7 +40,7 @@ export function MessageArea() {
 
   if (!selectedChannelId) {
     return (
-      <Box flex="1" display="flex" alignItems="center" justifyContent="center" bg="#0A0A10">
+      <Box flex="1" display="flex" alignItems="center" justifyContent="center" bg="#1C1C2E">
         <Text color="rgba(244,244,246,0.3)" fontSize="15px">
           Select a channel
         </Text>
@@ -49,8 +49,8 @@ export function MessageArea() {
   }
 
   return (
-    <VStack flex="1" minW="0" bg="#0A0A10" gap="0" h="100vh">
-      <HStack px="16px" py="12px" borderBottom="1px solid #16161F" w="full" gap="8px" flexShrink={0}>
+    <VStack flex="1" minW="0" bg="#1C1C2E" gap="0" h="100vh">
+      <HStack px="16px" py="12px" borderBottom="1px solid #2A2A45" w="full" gap="8px" flexShrink={0}>
         <Hash size={16} color="rgba(244,244,246,0.5)" />
         <Text color="#F4F4F6" fontWeight="600" fontSize="15px" flex="1">
           {channel?.name ?? ""}
@@ -91,7 +91,7 @@ export function MessageArea() {
 
       {isSearching ? (
         <VStack flex="1" w="full" overflow="hidden">
-          <Box px="16px" py="6px" w="full" borderBottom="1px solid #16161F" flexShrink={0}>
+          <Box px="16px" py="6px" w="full" borderBottom="1px solid #2A2A45" flexShrink={0}>
             <Text color="rgba(244,244,246,0.4)" fontSize="12px">
               {searchLoading ? "Searching…" : `${searchResults?.length ?? 0} result${searchResults?.length === 1 ? "" : "s"} for "${searchQuery}"`}
             </Text>
@@ -103,13 +103,13 @@ export function MessageArea() {
       )}
 
       {isGuest ? (
-        <Box px="16px" py="12px" borderTop="1px solid #16161F" flexShrink={0}>
+        <Box px="16px" py="12px" borderTop="1px solid #2A2A45" flexShrink={0}>
           <Text color="rgba(244,244,246,0.3)" fontSize="13px" textAlign="center">
             Guests can read but not post messages.
           </Text>
         </Box>
       ) : (
-        <Box w="full" borderTop="1px solid #16161F" flexShrink={0}>
+        <Box w="full" borderTop="1px solid #2A2A45" flexShrink={0}>
           <MessageComposer channelId={selectedChannelId} channelName={channel?.name ?? ""} />
         </Box>
       )}

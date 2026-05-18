@@ -7,6 +7,7 @@ export interface Message {
   editedAt: string | null;
   parentMessageId: number | null;
   reactions: Record<string, number[]>;
+  replyCount: number;
 }
 
 export interface SendMessageRequest {

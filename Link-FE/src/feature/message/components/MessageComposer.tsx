@@ -6,16 +6,17 @@ import { useSendMessage } from "../hooks/useSendMessage";
 interface Props {
   channelId: number;
   channelName: string;
+  parentMessageId?: number;
 }
 
-export function MessageComposer({ channelId, channelName }: Props) {
+export function MessageComposer({ channelId, channelName, parentMessageId }: Props) {
   const [body, setBody] = useState("");
   const { mutate: send, isPending } = useSendMessage(channelId);
 
   const submit = () => {
     const trimmed = body.trim();
     if (!trimmed || isPending) return;
-    send(trimmed, { onSuccess: () => setBody("") });
+    send({ body: trimmed, parentMessageId }, { onSuccess: () => setBody("") });
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -32,14 +33,14 @@ export function MessageComposer({ channelId, channelName }: Props) {
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder={`Message #${channelName}`}
-        bg="#1A1A28"
-        border="1px solid #22222E"
+        bg="#22223A"
+        border="1px solid #2E2E50"
         color="#F4F4F6"
         borderRadius="10px"
         fontSize="14px"
         _placeholder={{ color: "rgba(244,244,246,0.3)" }}
         _focus={{ borderColor: "#6C63FF", boxShadow: "none" }}
-        _hover={{ borderColor: "#2E2E40" }}
+        _hover={{ borderColor: "#3A3A60" }}
         disabled={isPending}
       />
       <IconButton

@@ -13,13 +13,13 @@ export function Tip({ label, placement = "right", children }: Props) {
       <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
       <Tooltip.Positioner>
         <Tooltip.Content
-          bg="#1A1A28"
+          bg="#22223A"
           color="#F4F4F6"
           fontSize="12px"
           px="8px"
           py="4px"
           borderRadius="6px"
-          border="1px solid #2E2E40"
+          border="1px solid #3A3A60"
         >
           {label}
         </Tooltip.Content>
