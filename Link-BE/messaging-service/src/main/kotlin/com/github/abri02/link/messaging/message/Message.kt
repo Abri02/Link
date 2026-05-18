@@ -19,7 +19,7 @@ class Message(
     val authorId: Long,
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    val body: String,
+    var body: String,
 
     @Column(nullable = false)
     val createdAt: Instant = Instant.now(),

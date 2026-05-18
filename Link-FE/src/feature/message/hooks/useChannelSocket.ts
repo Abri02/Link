@@ -37,6 +37,20 @@ export function useChannelSocket(channelId: number | null) {
             )
           );
         });
+
+        client.subscribe(`/topic/channel.${channelId}.edits`, (frame) => {
+          const updated: Message = JSON.parse(frame.body);
+          queryClient.setQueryData<Message[]>(messageKeys.byChannel(channelId), (old) =>
+            old?.map((m) => (m.id === updated.id ? updated : m))
+          );
+        });
+
+        client.subscribe(`/topic/channel.${channelId}.deletes`, (frame) => {
+          const { messageId }: { messageId: number } = JSON.parse(frame.body);
+          queryClient.setQueryData<Message[]>(messageKeys.byChannel(channelId), (old) =>
+            old?.filter((m) => m.id !== messageId)
+          );
+        });
       },
     });
 

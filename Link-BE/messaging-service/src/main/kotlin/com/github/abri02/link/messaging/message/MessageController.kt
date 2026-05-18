@@ -9,7 +9,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
 data class SendMessageRequest(val body: String, val parentMessageId: Long? = null)
+data class EditMessageRequest(val body: String)
+data class DeletedEvent(val messageId: Long, val channelId: Long)
 
 data class MessageResponse(
     val id: Long,
@@ -122,6 +126,57 @@ class MessageController(
             .groupBy { it.messageId }
             .mapValues { (_, rxns) -> rxns.groupBy({ it.emoji }, { it.userId }) }
         return ResponseEntity.ok(ordered.map { it.toResponse(reactionsByMessage[it.id] ?: emptyMap()) })
+    }
+
+    @PatchMapping("/{messageId}")
+    @Transactional
+    fun edit(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable channelId: Long,
+        @PathVariable messageId: Long,
+        @RequestBody req: EditMessageRequest
+    ): ResponseEntity<*> {
+        val userId = jwt.subject.toLong()
+        val message = messages.findById(messageId).orElse(null)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
+
+        if (message.channelId != channelId)
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
+
+        if (message.authorId != userId)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not the author"))
+
+        if (req.body.isBlank())
+            return ResponseEntity.badRequest().body(ErrorResponse("Message body cannot be empty"))
+
+        message.body = req.body.trim()
+        message.editedAt = Instant.now()
+        val response = messages.save(message).toResponse()
+        broker.convertAndSend("/topic/channel.$channelId.edits", response)
+        return ResponseEntity.ok(response)
+    }
+
+    @DeleteMapping("/{messageId}")
+    @Transactional
+    fun delete(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable channelId: Long,
+        @PathVariable messageId: Long
+    ): ResponseEntity<*> {
+        val userId = jwt.subject.toLong()
+        val message = messages.findById(messageId).orElse(null)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
+
+        if (message.channelId != channelId)
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
+
+        if (message.authorId != userId)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not the author"))
+
+        message.deletedAt = Instant.now()
+        messages.save(message)
+        broker.convertAndSend("/topic/channel.$channelId.deletes", DeletedEvent(messageId, channelId))
+        return ResponseEntity.noContent().build<Unit>()
     }
 
     private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap()) =

@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { Box, VStack, HStack, Text, Button, Popover, Portal } from "@chakra-ui/react";
-import { Smile } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Box, VStack, HStack, Text, Button, Popover, Portal, IconButton, Menu, Input } from "@chakra-ui/react";
+import { Smile, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { useToggleReaction } from "../hooks/useToggleReaction";
+import { useEditMessage } from "../hooks/useEditMessage";
+import { useDeleteMessage } from "../hooks/useDeleteMessage";
 import type { Message } from "../api/message.types";
 
 const EMOJI_PICKER = ["👍", "❤️", "😂", "🎉", "🔥", "😮", "😢", "👀"];
@@ -99,19 +101,154 @@ function ReactionArea({ message }: { message: Message }) {
   );
 }
 
+function MessageActions({ message, onEdit }: { message: Message; onEdit: () => void }) {
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const { mutate: deleteMsg } = useDeleteMessage(message.channelId);
+
+  if (message.authorId !== currentUserId) return null;
+
+  return (
+    <Menu.Root>
+      <Menu.Trigger asChild>
+        <IconButton
+          size="xs"
+          variant="ghost"
+          color="rgba(244,244,246,0.3)"
+          _hover={{ color: "#F4F4F6", bg: "#1E1E2E" }}
+          aria-label="Message actions"
+          h="22px"
+          w="22px"
+          minW="0"
+        >
+          <MoreHorizontal size={13} />
+        </IconButton>
+      </Menu.Trigger>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content bg="#1A1A26" border="1px solid #2A2A38" borderRadius="8px" p="4px" minW="120px">
+            <Menu.Item
+              value="edit"
+              color="#F4F4F6"
+              fontSize="13px"
+              borderRadius="4px"
+              _hover={{ bg: "#2A2A38" }}
+              cursor="pointer"
+              onClick={onEdit}
+            >
+              <HStack gap="6px">
+                <Pencil size={12} />
+                <Text>Edit</Text>
+              </HStack>
+            </Menu.Item>
+            <Menu.Item
+              value="delete"
+              color="#FF6B6B"
+              fontSize="13px"
+              borderRadius="4px"
+              _hover={{ bg: "#2A2A38" }}
+              cursor="pointer"
+              onClick={() => deleteMsg(message.id)}
+            >
+              <HStack gap="6px">
+                <Trash2 size={12} />
+                <Text>Delete</Text>
+              </HStack>
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
+  );
+}
+
+function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [draft, setDraft] = useState(message.body);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { mutate: editMsg, isPending } = useEditMessage(message.channelId);
+
+  useEffect(() => {
+    if (editing) {
+      setDraft(message.body);
+      inputRef.current?.focus();
+    }
+  }, [editing, message.body]);
+
+  function save() {
+    if (draft.trim() === message.body || draft.trim() === "") { setEditing(false); return; }
+    editMsg({ messageId: message.id, body: draft.trim() }, { onSuccess: () => setEditing(false) });
+  }
+
+  if (editing) {
+    return (
+      <VStack gap="4px" alignItems="stretch" w="full">
+        <Input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); }
+            if (e.key === "Escape") setEditing(false);
+          }}
+          size="sm"
+          bg="#16161F"
+          border="1px solid #6C63FF"
+          color="#F4F4F6"
+          fontSize="14px"
+          borderRadius="6px"
+          _focusVisible={{ boxShadow: "0 0 0 1px #6C63FF" }}
+          disabled={isPending}
+        />
+        <HStack gap="6px">
+          <Button size="xs" bg="#6C63FF" color="white" _hover={{ bg: "#5A52E0" }} onClick={save} disabled={isPending}>
+            Save
+          </Button>
+          <Button size="xs" variant="ghost" color="rgba(244,244,246,0.5)" onClick={() => setEditing(false)}>
+            Cancel
+          </Button>
+          <Text fontSize="11px" color="rgba(244,244,246,0.3)">Esc to cancel · Enter to save</Text>
+        </HStack>
+      </VStack>
+    );
+  }
+
+  return (
+    <HStack
+      gap="6px"
+      alignItems="flex-start"
+      w="full"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <VStack gap="0" alignItems="flex-start" flex="1" minW="0">
+        <HStack gap="4px" alignItems="baseline">
+          <Text color="#D4D4DC" fontSize="14px" lineHeight="1.5" wordBreak="break-word">
+            {message.body}
+          </Text>
+          {message.editedAt && (
+            <Text color="rgba(244,244,246,0.25)" fontSize="11px" flexShrink={0}>(edited)</Text>
+          )}
+        </HStack>
+        <ReactionArea message={message} />
+      </VStack>
+      {hovered && (
+        <Box flexShrink={0}>
+          <MessageActions message={message} onEdit={() => setEditing(true)} />
+        </Box>
+      )}
+    </HStack>
+  );
+}
+
 export function MessageRow({ message, prevAuthorId, authorUsername }: Props) {
   const isOnline = usePresenceStore((s) => s.onlineIds.has(message.authorId));
 
   if (prevAuthorId === message.authorId) {
     return (
-      <HStack gap="0" alignItems="flex-start" pl="48px" pr="16px" _hover={{ bg: "#0E0E18" }} py="1px">
-        <VStack gap="0" alignItems="flex-start" flex="1" minW="0">
-          <Text color="#F4F4F6" fontSize="14px" lineHeight="1.5">
-            {message.body}
-          </Text>
-          <ReactionArea message={message} />
-        </VStack>
-      </HStack>
+      <Box pl="48px" pr="16px" _hover={{ bg: "#0E0E18" }} py="1px">
+        <MessageBody message={message} isGrouped />
+      </Box>
     );
   }
 
@@ -153,10 +290,7 @@ export function MessageRow({ message, prevAuthorId, authorUsername }: Props) {
             {formatTime(message.createdAt)}
           </Text>
         </HStack>
-        <Text color="#D4D4DC" fontSize="14px" lineHeight="1.5" wordBreak="break-word">
-          {message.body}
-        </Text>
-        <ReactionArea message={message} />
+        <MessageBody message={message} isGrouped={false} />
       </VStack>
     </HStack>
   );
