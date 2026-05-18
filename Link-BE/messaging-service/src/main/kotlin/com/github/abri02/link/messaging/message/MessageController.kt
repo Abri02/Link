@@ -22,7 +22,13 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
-data class SendMessageRequest(val body: String, val parentMessageId: Long? = null)
+data class SendMessageRequest(
+    val body: String,
+    val parentMessageId: Long? = null,
+    val attachmentUrl: String? = null,
+    val attachmentName: String? = null,
+    val attachmentMime: String? = null
+)
 data class EditMessageRequest(val body: String)
 data class DeletedEvent(val messageId: Long, val channelId: Long)
 
@@ -35,7 +41,10 @@ data class MessageResponse(
     val editedAt: Instant?,
     val parentMessageId: Long?,
     val reactions: Map<String, List<Long>> = emptyMap(),
-    val replyCount: Int = 0
+    val replyCount: Int = 0,
+    val attachmentUrl: String? = null,
+    val attachmentName: String? = null,
+    val attachmentMime: String? = null
 )
 
 data class NotificationEvent(
@@ -84,7 +93,10 @@ class MessageController(
                 channelId = channelId,
                 authorId = userId,
                 body = req.body.trim(),
-                parentMessageId = req.parentMessageId
+                parentMessageId = req.parentMessageId,
+                attachmentUrl = req.attachmentUrl,
+                attachmentName = req.attachmentName,
+                attachmentMime = req.attachmentMime
             )
         )
         val response = message.toResponse()
@@ -218,5 +230,6 @@ class MessageController(
     }
 
     private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap(), replyCount: Int = 0) =
-        MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns, replyCount)
+        MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns, replyCount,
+            attachmentUrl, attachmentName, attachmentMime)
 }
