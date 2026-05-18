@@ -2,17 +2,9 @@ name: messaging-service tests
 
 on:
   push:
-    paths:
-      - "Link-BE/messaging-service/**"
-      - "Link-BE/shared-jwt/**"
-      - "Link-BE/build.gradle.kts"
-      - "Link-BE/settings.gradle.kts"
+    branches: [main]
   pull_request:
-    paths:
-      - "Link-BE/messaging-service/**"
-      - "Link-BE/shared-jwt/**"
-      - "Link-BE/build.gradle.kts"
-      - "Link-BE/settings.gradle.kts"
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
