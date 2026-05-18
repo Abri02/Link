@@ -1,6 +1,9 @@
 package com.github.abri02.link.messaging.message
 
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
+import com.github.abri02.link.messaging.channel.ChannelRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.messaging.simp.SimpMessagingTemplate
@@ -23,7 +26,9 @@ data class ReactionUpdateEvent(
 @RequestMapping("/messages/{messageId}/reactions/{emoji}")
 class ReactionController(
     private val messages: MessageRepository,
+    private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository,
+    private val workspaceMembers: WorkspaceMemberRepository,
     private val reactions: MessageReactionRepository,
     private val broker: SimpMessagingTemplate
 ) {
@@ -41,6 +46,13 @@ class ReactionController(
 
         if (!channelMembers.existsByChannelIdAndUserId(message.channelId, userId))
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+
+        val channel = channels.findById(message.channelId).orElse(null)
+        if (channel != null) {
+            val role = workspaceMembers.findByWorkspaceIdAndUserId(channel.workspaceId, userId)?.role
+            if (role == WorkspaceRole.GUEST)
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Guests cannot react to messages"))
+        }
 
         if (!reactions.existsByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
             reactions.save(MessageReaction(messageId = messageId, userId = userId, emoji = emoji))

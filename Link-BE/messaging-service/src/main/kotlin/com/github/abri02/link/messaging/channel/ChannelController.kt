@@ -2,6 +2,7 @@ package com.github.abri02.link.messaging.channel
 
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -49,8 +50,11 @@ class ChannelController(
         if (!workspaces.existsById(workspaceId))
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
 
-        if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
+        val callerMember = workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, userId)
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
+
+        if (callerMember.role !in listOf(WorkspaceRole.OWNER, WorkspaceRole.ADMIN))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Only OWNER or ADMIN can create channels"))
 
         if (req.name.isBlank() || req.name.length > 80)
             return ResponseEntity.badRequest().body(ErrorResponse("Channel name must be 1–80 characters"))

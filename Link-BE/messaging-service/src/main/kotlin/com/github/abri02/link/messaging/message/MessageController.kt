@@ -2,6 +2,8 @@ package com.github.abri02.link.messaging.message
 
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -48,6 +50,7 @@ data class ErrorResponse(val message: String)
 class MessageController(
     private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository,
+    private val workspaceMembers: WorkspaceMemberRepository,
     private val messages: MessageRepository,
     private val reactions: MessageReactionRepository,
     private val broker: SimpMessagingTemplate
@@ -62,11 +65,15 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        if (!channels.existsById(channelId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Channel not found"))
+        val channel = channels.findById(channelId).orElse(null)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Channel not found"))
 
         if (!channelMembers.existsByChannelIdAndUserId(channelId, userId))
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+
+        val role = workspaceMembers.findByWorkspaceIdAndUserId(channel.workspaceId, userId)?.role
+        if (role == WorkspaceRole.GUEST)
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Guests cannot send messages"))
 
         if (req.body.isBlank())
             return ResponseEntity.badRequest().body(ErrorResponse("Message body cannot be empty"))

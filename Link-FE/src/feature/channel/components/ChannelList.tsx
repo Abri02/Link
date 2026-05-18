@@ -9,28 +9,31 @@ interface Props {
   selectedChannelId: number | null;
   onSelect: (id: number) => void;
   onAddClick: () => void;
+  canCreate?: boolean;
 }
 
-export function ChannelList({ channels, isLoading, selectedChannelId, onSelect, onAddClick }: Props) {
+export function ChannelList({ channels, isLoading, selectedChannelId, onSelect, onAddClick, canCreate }: Props) {
   return (
     <Box flex="1" overflow="auto" py="8px">
       <HStack px="12px" py="4px" mb="2px">
         <Text color="rgba(244,244,246,0.4)" fontSize="11px" fontWeight="600" letterSpacing="0.06em" flex="1">
           CHANNELS
         </Text>
-        <IconButton
-          size="xs"
-          variant="ghost"
-          color="rgba(244,244,246,0.4)"
-          _hover={{ color: "#F4F4F6" }}
-          aria-label="Add channel"
-          onClick={onAddClick}
-          h="20px"
-          w="20px"
-          minW="0"
-        >
-          <Plus size={12} />
-        </IconButton>
+        {canCreate && (
+          <IconButton
+            size="xs"
+            variant="ghost"
+            color="rgba(244,244,246,0.4)"
+            _hover={{ color: "#F4F4F6" }}
+            aria-label="Add channel"
+            onClick={onAddClick}
+            h="20px"
+            w="20px"
+            minW="0"
+          >
+            <Plus size={12} />
+          </IconButton>
+        )}
       </HStack>
 
       {isLoading && (
