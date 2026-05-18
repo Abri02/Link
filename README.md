@@ -524,6 +524,19 @@ npx playwright test
 - [x] **Day 16** — Publish on send: `POST /channels/{id}/messages` broadcasts to `/topic/channel.{id}`.
 - [x] **Day 17** — Frontend WS client: `@stomp/stompjs`, subscribe on channel mount, append to React Query cache.
 - [x] **Day 18** — Presence: `messaging-service` publishes presence events on WS connect/disconnect; frontend presence store + dots in sidebar and message rows.
-- [ ] **Day 19** — Demo polish: avatars, timestamps, message grouping, Chakra theme, logout button.
+- [x] **Day 19** — Demo polish: initials-avatar with presence dot (`MessageRow`), timestamps, consecutive-author message grouping, logout button in `SidebarFooter`.
 - [ ] **Day 20** — Demo dry run: `docker compose down -v && docker compose up`, full script end-to-end.
 - [ ] **Day 21** — Buffer.
+
+### Phase 2 — Rest of semester 1
+
+- [x] **DMs** — `DmController` (`POST/GET /workspaces/{id}/dms`), FE hooks (`useDms`, `useOpenDm`), `DmItem` sidebar entry.
+- [x] **Notifications (unread badges)** — Backend fans out `/user/queue/notifications` on send; FE `notificationStore` + `useNotificationSocket`; badge count per channel.
+- [ ] **Threads** — `GET /messages/{id}/thread` endpoint; thread sidebar `Drawer` in FE.
+- [ ] **Reactions** — `V2` Flyway migration adds `message_reaction` table; `POST/DELETE /messages/{id}/reactions/{emoji}`; aggregate counts in `MessageResponse`; emoji-picker `Popover` in FE.
+- [ ] **File sharing (`file-service`)** — MinIO in `docker-compose`; presigned upload; `attachment` table; inline image preview.
+- [ ] **RBAC enforcement** — `@PreAuthorize` on every controller; role matrix documented; guests read-only.
+- [ ] **Message edit + delete** — `PATCH /messages/{id}`, `DELETE /messages/{id}`; WS broadcast `message.edited` / `message.deleted`; FE hover-menu.
+- [ ] **Message search** — `GET /channels/{id}/messages?q=` Postgres full-text; search bar in FE.
+- [ ] **Tests** — JUnit 5 unit tests (domain logic); Spring Boot integration tests (happy-path per service); E2E Playwright specs for all features.
+- [x] **CI** — GitHub Actions: `auth-service.yml`, `messaging-service.yml`, `user-service.yml`, `e2e.yml`.

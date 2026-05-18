@@ -16,4 +16,10 @@ interface MessageRepository : JpaRepository<Message, Long> {
         beforeId: Long,
         pageable: Pageable
     ): List<Message>
+
+    fun findByChannelIdAndBodyContainingIgnoreCaseAndDeletedAtIsNullOrderByCreatedAtDesc(
+        channelId: Long,
+        query: String,
+        pageable: Pageable
+    ): List<Message>
 }
