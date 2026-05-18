@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Box, VStack, HStack, Text, Button, Popover, Portal, IconButton, Menu, Input } from "@chakra-ui/react";
-import { Smile, MoreHorizontal, Pencil, Trash2, MessageSquare } from "lucide-react";
+import { Box, VStack, HStack, Text, Button, Popover, Portal, IconButton, Menu, Input, Image, Link } from "@chakra-ui/react";
+import { Smile, MoreHorizontal, Pencil, Trash2, MessageSquare, FileText, Download } from "lucide-react";
+import { API_URL } from "@/util/constants";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
@@ -183,6 +184,47 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
   );
 }
 
+function AttachmentPreview({ url, name, mime }: { url: string; name: string; mime: string }) {
+  const isImage = mime.startsWith("image/");
+  if (isImage) {
+    return (
+      <Box mt="4px" maxW="300px">
+        <Image
+          src={url}
+          alt={name}
+          borderRadius="6px"
+          maxH="200px"
+          objectFit="contain"
+          cursor="pointer"
+          onClick={() => window.open(url, "_blank")}
+        />
+      </Box>
+    );
+  }
+  return (
+    <HStack
+      mt="4px"
+      bg="#22223A"
+      border="1px solid #2E2E50"
+      borderRadius="8px"
+      px="10px"
+      py="8px"
+      gap="8px"
+      maxW="280px"
+    >
+      <FileText size={18} color="#6C63FF" />
+      <VStack gap="0" alignItems="flex-start" flex="1" minW="0">
+        <Text fontSize="13px" color="#D4D4DC" noOfLines={1}>{name}</Text>
+      </VStack>
+      <Link href={url} download={name} target="_blank" rel="noreferrer">
+        <IconButton size="xs" variant="ghost" color="rgba(244,244,246,0.4)" _hover={{ color: "#F4F4F6" }} aria-label="Download" h="20px" w="20px" minW="0">
+          <Download size={13} />
+        </IconButton>
+      </Link>
+    </HStack>
+  );
+}
+
 function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -255,6 +297,13 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
             <Text color="rgba(244,244,246,0.25)" fontSize="11px" flexShrink={0}>(edited)</Text>
           )}
         </HStack>
+        {message.attachmentUrl && (
+          <AttachmentPreview
+            url={`${API_URL}${message.attachmentUrl.replace(/^\/api/, "")}`}
+            name={message.attachmentName ?? "file"}
+            mime={message.attachmentMime ?? "application/octet-stream"}
+          />
+        )}
         <ReactionArea message={message} />
         {hasThread && (
           <Button

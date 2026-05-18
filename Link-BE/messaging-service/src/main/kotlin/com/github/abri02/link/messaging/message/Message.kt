@@ -31,7 +31,16 @@ class Message(
     var deletedAt: Instant? = null,
 
     @Column
-    val parentMessageId: Long? = null
+    val parentMessageId: Long? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val attachmentUrl: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val attachmentName: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val attachmentMime: String? = null
 
 ) {
     @Id

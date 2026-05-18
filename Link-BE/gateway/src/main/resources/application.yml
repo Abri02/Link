@@ -23,6 +23,14 @@ spring:
               filters:
                 - StripPrefix=1
 
+            # File service — must be before the messaging catch-all
+            - id: files
+              uri: http://localhost:8084
+              predicates:
+                - Path=/api/attachments,/api/attachments/**
+              filters:
+                - StripPrefix=1
+
             # Messaging service — catch-all for remaining /api/** paths
             - id: messaging
               uri: http://localhost:8083

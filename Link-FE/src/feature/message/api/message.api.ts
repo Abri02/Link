@@ -1,5 +1,26 @@
 import { apiClient } from "@/util/apiClient";
+import { API_URL } from "@/util/constants";
 import type { Message, SendMessageRequest } from "./message.types";
+
+export interface AttachmentResponse {
+  id: number;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+}
+
+export const uploadAttachment = async (file: File): Promise<AttachmentResponse> => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/attachments`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  return res.json();
+};
 
 export const listMessages = (channelId: number, before?: number): Promise<Message[]> => {
   const params = new URLSearchParams({ limit: "50" });
