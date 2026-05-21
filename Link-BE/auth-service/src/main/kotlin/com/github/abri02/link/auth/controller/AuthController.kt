@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.security.MessageDigest
 import java.time.Instant
@@ -41,6 +42,7 @@ data class LoginRequest(
 
 data class ErrorResponse(val message: String)
 data class MeResponse(val id: Long, val email: String, val username: String)
+data class UserLookupResponse(val id: Long, val username: String, val displayName: String)
 
 // ---------- controller ----------
 
@@ -153,6 +155,13 @@ class AuthController(
             .header(HttpHeaders.SET_COOKIE, clearSession.toString())
             .header(HttpHeaders.SET_COOKIE, clearRefresh.toString())
             .build()
+    }
+
+    @GetMapping("/lookup")
+    fun lookup(@RequestParam q: String): ResponseEntity<*> {
+        val user = users.findByUsername(q) ?: users.findByEmail(q)
+            ?: return ResponseEntity.notFound().build<Void>()
+        return ResponseEntity.ok(UserLookupResponse(user.id!!, user.username, user.displayName))
     }
 
     @GetMapping("/me")

@@ -1,5 +1,8 @@
-import { VStack, Box, Text, Dialog, Portal } from "@chakra-ui/react";
+import { VStack, Box, HStack, Text, IconButton, Dialog, Portal } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
+import { UserPlus } from "lucide-react";
+import { Tip } from "@/components/Tip";
+import { InviteMemberDialog } from "@/feature/workspace/components/InviteMemberDialog";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useDms } from "@/feature/channel/hooks/useDms";
 import { useOpenDm } from "@/feature/channel/hooks/useOpenDm";
@@ -30,6 +33,7 @@ export function ChannelSidebar() {
   const { data: dms } = useDms(selectedWorkspaceId);
   const { mutate: openDm } = useOpenDm(selectedWorkspaceId ?? 0);
   const { open, onOpen, onClose } = useDisclosure();
+  const { open: inviteOpen, onOpen: onInviteOpen, onClose: onInviteClose } = useDisclosure();
   const role = useMyWorkspaceRole(selectedWorkspaceId);
   const canCreate = role === "OWNER" || role === "ADMIN";
 
@@ -50,11 +54,25 @@ export function ChannelSidebar() {
 
   return (
     <VStack {...SIDEBAR_STYLES} alignItems="stretch" gap="0">
-      <Box px="16px" py="14px" borderBottom="1px solid #2A2A45">
+      <HStack px="16px" py="14px" borderBottom="1px solid #2A2A45" justify="space-between">
         <Text color="#F4F4F6" fontWeight="600" fontSize="15px" truncate>
           {workspace?.name ?? ""}
         </Text>
-      </Box>
+        {canCreate && (
+          <Tip label="Invite member" placement="right">
+            <IconButton
+              onClick={onInviteOpen}
+              size="xs"
+              bg="transparent"
+              color="rgba(244,244,246,0.4)"
+              _hover={{ color: "#6C63FF", bg: "transparent" }}
+              aria-label="Invite member"
+            >
+              <UserPlus size={14} />
+            </IconButton>
+          </Tip>
+        )}
+      </HStack>
 
       <ChannelList
         channels={channels}
@@ -112,6 +130,20 @@ export function ChannelSidebar() {
                 New channel
               </Dialog.Title>
               <CreateChannelDialog workspaceId={selectedWorkspaceId} onClose={onClose} />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={inviteOpen} onOpenChange={(e) => !e.open && onInviteClose()}>
+        <Portal>
+          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
+          <Dialog.Positioner>
+            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
+              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
+                Invite member
+              </Dialog.Title>
+              <InviteMemberDialog workspaceId={selectedWorkspaceId} onClose={onInviteClose} />
             </Dialog.Content>
           </Dialog.Positioner>
         </Portal>

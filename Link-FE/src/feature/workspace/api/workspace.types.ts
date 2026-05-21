@@ -26,3 +26,8 @@ export interface MemberDetail {
   username: string;
   role: string;
 }
+
+export interface InviteMemberRequest {
+  identifier: string;
+  role?: "ADMIN" | "MEMBER" | "GUEST";
+}

@@ -1,5 +1,5 @@
 import { apiClient } from "@/util/apiClient";
-import type { Workspace, CreateWorkspaceRequest, AddMemberRequest, WorkspaceMember, MemberDetail } from "./workspace.types";
+import type { Workspace, CreateWorkspaceRequest, AddMemberRequest, WorkspaceMember, MemberDetail, InviteMemberRequest } from "./workspace.types";
 
 export const listWorkspaces = (): Promise<Workspace[]> =>
   apiClient("/workspaces");
@@ -12,3 +12,6 @@ export const addMember = (workspaceId: number, data: AddMemberRequest): Promise<
 
 export const listMembers = (workspaceId: number): Promise<MemberDetail[]> =>
   apiClient(`/workspaces/${workspaceId}/members`);
+
+export const inviteMember = (workspaceId: number, data: InviteMemberRequest): Promise<WorkspaceMember> =>
+  apiClient(`/workspaces/${workspaceId}/members/invite`, { method: "POST", body: JSON.stringify(data) });
