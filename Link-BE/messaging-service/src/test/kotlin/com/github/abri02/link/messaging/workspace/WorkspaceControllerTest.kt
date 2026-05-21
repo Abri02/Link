@@ -25,12 +25,13 @@ class WorkspaceControllerTest {
     @Mock private lateinit var members: WorkspaceMemberRepository
     @Mock private lateinit var channels: ChannelRepository
     @Mock private lateinit var channelMembers: ChannelMemberRepository
+    @Mock private lateinit var authService: AuthServiceClient
 
     private lateinit var controller: WorkspaceController
 
     @BeforeEach
     fun setup() {
-        controller = WorkspaceController(workspaces, members, channels, channelMembers)
+        controller = WorkspaceController(workspaces, members, channels, channelMembers, authService)
     }
 
     // ── create ────────────────────────────────────────────────────────
