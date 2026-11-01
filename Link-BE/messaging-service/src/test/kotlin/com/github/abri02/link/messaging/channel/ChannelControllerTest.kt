@@ -119,6 +119,29 @@ class ChannelControllerTest {
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
+    @Test
+    fun `list returns 404 when workspace does not exist`() {
+        given(workspaces.existsById(1L)).willReturn(false)
+
+        val res = controller.list(buildJwt(1L), 1L)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `list returns only the channels visible to the caller`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(true)
+        given(channels.findVisibleChannels(1L, 2L)).willReturn(listOf(buildChannel(10L, 1L, "general")))
+
+        val res = controller.list(buildJwt(2L), 1L)
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+        @Suppress("UNCHECKED_CAST")
+        val body = res.body as List<ChannelResponse>
+        assertThat(body.map { it.name }).containsExactly("general")
+        verify(channels).findVisibleChannels(1L, 2L)
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private fun buildJwt(userId: Long) = Jwt.withTokenValue("tok")
