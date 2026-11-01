@@ -15,6 +15,9 @@ test.describe("Message", () => {
     await sendMessage(page, "general", body);
 
     await expect(page.getByText(body)).toBeVisible();
+    // Send response and STOMP broadcast both deliver it; it must render once.
+    await page.waitForTimeout(1000);
+    await expect(page.getByText(body)).toHaveCount(1);
   });
 
   test("messages persist after page reload", async ({ page }) => {
@@ -35,6 +38,25 @@ test.describe("Message", () => {
     await page.getByRole("button", { name: wsName }).waitFor();
     await selectWorkspace(page, wsName);
     await selectChannel(page, "general");
+
+    await expect(page.getByText(body)).toBeVisible();
+  });
+
+  test("sent message appears even before the realtime socket is connected", async ({ page }) => {
+    // Hold every WebSocket open without ever connecting it to the server: STOMP never
+    // subscribes, so the sender must see their message from the send response alone.
+    await page.routeWebSocket(/\/ws$/, () => {});
+
+    const user = uniqueUser("msgnows");
+    await signUp(page, user.email, user.username);
+
+    const wsName = `NoWsWS-${Date.now()}`;
+    await createWorkspace(page, wsName);
+    await selectWorkspace(page, wsName);
+    await selectChannel(page, "general");
+
+    const body = `No socket ${Date.now()}`;
+    await sendMessage(page, "general", body);
 
     await expect(page.getByText(body)).toBeVisible();
   });
