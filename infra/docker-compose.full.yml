@@ -14,6 +14,20 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   auth-service:
     build:
       context: ../Link-BE
@@ -64,11 +78,36 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/link
       SPRING_DATASOURCE_USERNAME: link
       SPRING_DATASOURCE_PASSWORD: link
+      AUTHSERVICE_URL: http://auth-service:8081
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8083'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  file-service:
+    build:
+      context: ../Link-BE
+      dockerfile: Dockerfile
+      args:
+        SERVICE: file-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/link
+      SPRING_DATASOURCE_USERNAME: link
+      SPRING_DATASOURCE_PASSWORD: link
+      MINIO_URL: http://minio:9000
+      MESSAGING_URL: http://messaging-service:8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8084'"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -91,6 +130,9 @@ services:
         condition: service_healthy
       messaging-service:
         condition: service_healthy
+      file-service:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  minio_data:
