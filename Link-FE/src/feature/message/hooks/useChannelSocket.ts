@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WS_URL } from "@/util/constants";
 import { messageKeys } from "../api/message.api.keys";
+import { appendMessage } from "../api/message.cache";
 import type { Message } from "../api/message.types";
 
 interface ReactionUpdateEvent {
@@ -23,9 +24,8 @@ export function useChannelSocket(channelId: number | null) {
       onConnect: () => {
         client.subscribe(`/topic/channel.${channelId}`, (frame) => {
           const message: Message = JSON.parse(frame.body);
-          queryClient.setQueryData(
-            messageKeys.byChannel(channelId),
-            (old: Message[] | undefined) => (old ? [...old, message] : [message])
+          queryClient.setQueryData<Message[]>(messageKeys.byChannel(channelId), (old) =>
+            appendMessage(old, message)
           );
         });
 

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Box, Button, Center, Text } from "@chakra-ui/react";
+import { Button, Center, Text } from "@chakra-ui/react";
 import { LogOut } from "lucide-react";
 import { useLogout } from "@/feature/auth/hooks/useLogout";
 import { useAuthStore } from "@/feature/auth/stores/authStore";

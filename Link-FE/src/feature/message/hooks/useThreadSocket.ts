@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WS_URL } from "@/util/constants";
 import { messageKeys } from "../api/message.api.keys";
+import { appendMessage } from "../api/message.cache";
 import type { Message } from "../api/message.types";
 
 export function useThreadSocket(parentMessageId: number | null) {
@@ -18,7 +19,7 @@ export function useThreadSocket(parentMessageId: number | null) {
         client.subscribe(`/topic/thread.${parentMessageId}`, (frame) => {
           const reply: Message = JSON.parse(frame.body);
           queryClient.setQueryData<Message[]>(messageKeys.thread(parentMessageId), (old) =>
-            old ? [...old, reply] : [reply]
+            appendMessage(old, reply)
           );
         });
       },

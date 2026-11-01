@@ -1,4 +1,4 @@
-import { HStack, VStack, Input, IconButton, Box, Text } from "@chakra-ui/react";
+import { HStack, VStack, Input, IconButton, Text } from "@chakra-ui/react";
 import { Send, Paperclip, X } from "lucide-react";
 import { useState, useRef, type KeyboardEvent } from "react";
 import { useSendMessage } from "../hooks/useSendMessage";
@@ -71,7 +71,7 @@ export function MessageComposer({ channelId, channelName, parentMessageId }: Pro
           py="6px"
           gap="6px"
         >
-          <Text fontSize="12px" color="#A0A0C0" flex="1" noOfLines={1}>
+          <Text fontSize="12px" color="#A0A0C0" flex="1" lineClamp={1}>
             {attachment.filename}
           </Text>
           <Text fontSize="11px" color="rgba(244,244,246,0.35)">

@@ -3,7 +3,7 @@ import { useLogin } from "../hooks/useLogin";
 import type { LoginRequest } from "../api/auth.types";
 
 export function LoginBox() {
-  const { mutate: login, isPending } = useLogin();
+  const { mutate: login } = useLogin();
   const loginRequest: LoginRequest = {
     email: "teszt@gmail.com",
     password: "teszt2",

@@ -17,14 +17,6 @@ async function signUp(page: Page, email: string, username: string) {
   await page.waitForURL("/");
 }
 
-async function signIn(page: Page, email: string) {
-  await page.goto("/login");
-  await page.getByPlaceholder("you@example.com").fill(email);
-  await page.getByPlaceholder("••••••••").fill(PASSWORD);
-  await page.getByRole("button", { name: /Sign in/i }).click();
-  await page.waitForURL("/");
-}
-
 async function logOut(page: Page) {
   await page.getByRole("button", { name: /Log out/i }).click();
   await page.waitForURL("/login");
