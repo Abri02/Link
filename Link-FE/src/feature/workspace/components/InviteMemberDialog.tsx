@@ -1,4 +1,4 @@
-import { Box, Input, Button, Field } from "@chakra-ui/react";
+import { Box, Input, Button, Field, NativeSelect } from "@chakra-ui/react";
 import { useState } from "react";
 import { useInviteMember } from "../hooks/useInviteMember";
 
@@ -46,12 +46,10 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
         <Field.Label color="rgba(244,244,246,0.7)" fontSize="13px">
           Role
         </Field.Label>
-        <Box
-          as="select"
+        <NativeSelect.Root>
+        <NativeSelect.Field
           value={role}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-            setRole(e.target.value as "MEMBER" | "ADMIN" | "GUEST")
-          }
+          onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN" | "GUEST")}
           bg="#1C1C30"
           border="1px solid #2E2E50"
           color="#F4F4F6"
@@ -65,7 +63,8 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
           <option value="MEMBER" style={{ background: "#1C1C30" }}>Member</option>
           <option value="ADMIN" style={{ background: "#1C1C30" }}>Admin</option>
           <option value="GUEST" style={{ background: "#1C1C30" }}>Guest</option>
-        </Box>
+        </NativeSelect.Field>
+        </NativeSelect.Root>
       </Field.Root>
 
       <Button

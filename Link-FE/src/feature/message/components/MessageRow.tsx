@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Box, VStack, HStack, Text, Button, Popover, Portal, IconButton, Menu, Input, Image, Link } from "@chakra-ui/react";
 import { Smile, MoreHorizontal, Pencil, Trash2, MessageSquare, FileText, Download } from "lucide-react";
 import { API_URL } from "@/util/constants";
@@ -214,7 +214,7 @@ function AttachmentPreview({ url, name, mime }: { url: string; name: string; mim
     >
       <FileText size={18} color="#6C63FF" />
       <VStack gap="0" alignItems="flex-start" flex="1" minW="0">
-        <Text fontSize="13px" color="#D4D4DC" noOfLines={1}>{name}</Text>
+        <Text fontSize="13px" color="#D4D4DC" lineClamp={1}>{name}</Text>
       </VStack>
       <Link href={url} download={name} target="_blank" rel="noreferrer">
         <IconButton size="xs" variant="ghost" color="rgba(244,244,246,0.4)" _hover={{ color: "#F4F4F6" }} aria-label="Download" h="20px" w="20px" minW="0">
@@ -229,15 +229,8 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [draft, setDraft] = useState(message.body);
-  const inputRef = useRef<HTMLInputElement>(null);
   const { mutate: editMsg, isPending } = useEditMessage(message.channelId);
-
-  useEffect(() => {
-    if (editing) {
-      setDraft(message.body);
-      inputRef.current?.focus();
-    }
-  }, [editing, message.body]);
+  const openThread = useWorkspaceStore((s) => s.openThread);
 
   function save() {
     if (draft.trim() === message.body || draft.trim() === "") { setEditing(false); return; }
@@ -248,7 +241,7 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
     return (
       <VStack gap="4px" alignItems="stretch" w="full">
         <Input
-          ref={inputRef}
+          autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -277,7 +270,6 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
     );
   }
 
-  const openThread = useWorkspaceStore((s) => s.openThread);
   const hasThread = message.parentMessageId == null && message.replyCount > 0;
 
   return (
@@ -325,7 +317,7 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
       </VStack>
       {hovered && (
         <Box flexShrink={0}>
-          <MessageActions message={message} onEdit={() => setEditing(true)} />
+          <MessageActions message={message} onEdit={() => { setDraft(message.body); setEditing(true); }} />
         </Box>
       )}
     </HStack>

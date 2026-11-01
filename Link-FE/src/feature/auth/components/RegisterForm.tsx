@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Button, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, Link, Text, VStack } from "@chakra-ui/react";
 import { Mail, Lock, AtSign, User, AlertCircle } from "lucide-react";
 import { useSignup } from "../hooks/useSignup";
 import { LoginFormField } from "./LoginFormField";
@@ -117,9 +117,9 @@ export function RegisterForm() {
 
         <Text fontSize="13px" color="rgba(244,244,246,0.28)" textAlign="center">
           Already have an account?{" "}
-          <Text as="a" href="/login" color="#3B82F6" fontWeight="600" _hover={{ color: "#60A5FA" }}>
+          <Link href="/login" color="#3B82F6" fontWeight="600" _hover={{ color: "#60A5FA" }}>
             Sign in
-          </Text>
+          </Link>
         </Text>
       </VStack>
     </form>
