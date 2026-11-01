@@ -33,8 +33,8 @@ class Message(
     @Column
     val parentMessageId: Long? = null,
 
-    @Column(columnDefinition = "TEXT")
-    val attachmentUrl: String? = null,
+    @Column
+    val attachmentId: Long? = null,
 
     @Column(columnDefinition = "TEXT")
     val attachmentName: String? = null,

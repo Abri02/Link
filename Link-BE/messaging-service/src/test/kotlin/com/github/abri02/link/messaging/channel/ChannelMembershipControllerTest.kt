@@ -1,0 +1,56 @@
+package com.github.abri02.link.messaging.channel
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Mock
+import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.given
+import org.springframework.http.HttpStatus
+import org.springframework.security.oauth2.jwt.Jwt
+
+@ExtendWith(MockitoExtension::class)
+class ChannelMembershipControllerTest {
+
+    @Mock private lateinit var channels: ChannelRepository
+    @Mock private lateinit var channelMembers: ChannelMemberRepository
+
+    private lateinit var controller: ChannelMembershipController
+
+    @BeforeEach
+    fun setup() {
+        controller = ChannelMembershipController(channels, channelMembers)
+    }
+
+    @Test
+    fun `check returns 204 when caller is a channel member`() {
+        given(channels.existsById(5L)).willReturn(true)
+        given(channelMembers.existsByChannelIdAndUserId(5L, 1L)).willReturn(true)
+
+        val res = controller.check(buildJwt(1L), 5L)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+    }
+
+    @Test
+    fun `check returns 403 when caller is not a channel member`() {
+        given(channels.existsById(5L)).willReturn(true)
+        given(channelMembers.existsByChannelIdAndUserId(5L, 1L)).willReturn(false)
+
+        val res = controller.check(buildJwt(1L), 5L)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `check returns 404 when channel does not exist`() {
+        given(channels.existsById(99L)).willReturn(false)
+
+        val res = controller.check(buildJwt(1L), 99L)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    private fun buildJwt(userId: Long) = Jwt.withTokenValue("tok")
+        .header("alg", "RS256")
+        .subject(userId.toString())
+        .build()
+}

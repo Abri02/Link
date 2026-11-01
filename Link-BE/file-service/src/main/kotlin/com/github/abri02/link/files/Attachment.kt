@@ -11,6 +11,9 @@ import java.time.Instant
 @Table(name = "attachment", schema = "files")
 class Attachment(
     val uploaderId: Long,
+    // Nullable only so ddl-auto=update can add the column to old rows. Upload always sets it,
+    // and download refuses attachments without one.
+    val channelId: Long?,
     val filename: String,
     val mimeType: String,
     val sizeBytes: Long,

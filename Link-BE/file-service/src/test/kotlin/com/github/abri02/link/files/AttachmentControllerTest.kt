@@ -1,5 +1,7 @@
 package com.github.abri02.link.files
 
+import io.minio.GetObjectArgs
+import io.minio.GetObjectResponse
 import io.minio.MinioClient
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -11,9 +13,12 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.MockMultipartFile
 import org.springframework.security.oauth2.jwt.Jwt
+import okhttp3.Headers
+import java.io.ByteArrayInputStream
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -21,12 +26,13 @@ class AttachmentControllerTest {
 
     @Mock private lateinit var minio: MinioClient
     @Mock private lateinit var repo: AttachmentRepository
+    @Mock private lateinit var channelAccess: ChannelAccessClient
 
     private lateinit var controller: AttachmentController
 
     @BeforeEach
     fun setup() {
-        controller = AttachmentController(minio, repo, "link-files")
+        controller = AttachmentController(minio, repo, channelAccess, "link-files")
     }
 
     // ── upload ────────────────────────────────────────────────────────
@@ -35,9 +41,10 @@ class AttachmentControllerTest {
     fun `upload saves attachment and returns 201`() {
         val file = MockMultipartFile("file", "photo.png", "image/png", ByteArray(100))
         val saved = buildAttachment(id = 1L, filename = "photo.png", mimeType = "image/png", sizeBytes = 100L)
+        given(channelAccess.isMember(5L, "tok")).willReturn(true)
         given(repo.save(any<Attachment>())).willReturn(saved)
 
-        val res = controller.upload(buildJwt(42L), file)
+        val res = controller.upload(buildJwt(42L), file, 5L)
 
         assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
         val body = res.body!!
@@ -51,9 +58,10 @@ class AttachmentControllerTest {
     fun `upload stores uploader id from jwt`() {
         val file = MockMultipartFile("file", "doc.txt", "text/plain", ByteArray(10))
         val saved = buildAttachment(id = 2L, filename = "doc.txt", mimeType = "text/plain", sizeBytes = 10L)
+        given(channelAccess.isMember(5L, "tok")).willReturn(true)
         given(repo.save(any<Attachment>())).willReturn(saved)
 
-        controller.upload(buildJwt(99L), file)
+        controller.upload(buildJwt(99L), file, 5L)
 
         val captor = argumentCaptor<Attachment>()
         verify(repo).save(captor.capture())
@@ -64,9 +72,10 @@ class AttachmentControllerTest {
     fun `upload uses octet-stream when content type is null`() {
         val file = MockMultipartFile("file", "data.bin", null, ByteArray(50))
         val saved = buildAttachment(id = 3L, filename = "data.bin", mimeType = "application/octet-stream", sizeBytes = 50L)
+        given(channelAccess.isMember(5L, "tok")).willReturn(true)
         given(repo.save(any<Attachment>())).willReturn(saved)
 
-        val res = controller.upload(buildJwt(1L), file)
+        val res = controller.upload(buildJwt(1L), file, 5L)
         assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
         assertThat(res.body!!.mimeType).isEqualTo("application/octet-stream")
     }
@@ -75,9 +84,10 @@ class AttachmentControllerTest {
     fun `upload generates object key containing file extension`() {
         val file = MockMultipartFile("file", "image.jpg", "image/jpeg", ByteArray(200))
         val saved = buildAttachment(id = 4L, filename = "image.jpg", mimeType = "image/jpeg", sizeBytes = 200L)
+        given(channelAccess.isMember(5L, "tok")).willReturn(true)
         given(repo.save(any<Attachment>())).willReturn(saved)
 
-        controller.upload(buildJwt(1L), file)
+        controller.upload(buildJwt(1L), file, 5L)
 
         val captor = argumentCaptor<Attachment>()
         verify(repo).save(captor.capture())
@@ -85,7 +95,68 @@ class AttachmentControllerTest {
         assertThat(captor.firstValue.objectKey).startsWith("uploads/")
     }
 
+    @Test
+    fun `upload stores channel id`() {
+        val file = MockMultipartFile("file", "doc.txt", "text/plain", ByteArray(10))
+        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        given(repo.save(any<Attachment>())).willReturn(buildAttachment(id = 5L, filename = "doc.txt", mimeType = "text/plain", sizeBytes = 10L))
+
+        controller.upload(buildJwt(1L), file, 5L)
+
+        val captor = argumentCaptor<Attachment>()
+        verify(repo).save(captor.capture())
+        assertThat(captor.firstValue.channelId).isEqualTo(5L)
+    }
+
+    @Test
+    fun `upload returns 403 when caller is not a channel member`() {
+        val file = MockMultipartFile("file", "doc.txt", "text/plain", ByteArray(10))
+        given(channelAccess.isMember(5L, "tok")).willReturn(false)
+
+        val res = controller.upload(buildJwt(1L), file, 5L)
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNoInteractions(minio, repo)
+    }
+
     // ── download ──────────────────────────────────────────────────────
+
+    @Test
+    fun `download returns 403 when caller is not a member of the attachment channel`() {
+        given(repo.findById(1L)).willReturn(Optional.of(buildAttachment(1L, "a.png", "image/png", 10L, channelId = 5L)))
+        given(channelAccess.isMember(5L, "tok")).willReturn(false)
+
+        val res = controller.download(buildJwt(1L), 1L)
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNoInteractions(minio)
+    }
+
+    @Test
+    fun `download returns 403 for a legacy attachment without channel`() {
+        given(repo.findById(1L)).willReturn(Optional.of(buildAttachment(1L, "a.png", "image/png", 10L, channelId = null)))
+
+        val res = controller.download(buildJwt(1L), 1L)
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNoInteractions(minio, channelAccess)
+    }
+
+    @Test
+    fun `download returns content when caller is a channel member`() {
+        given(repo.findById(1L)).willReturn(Optional.of(buildAttachment(1L, "a.png", "image/png", 3L, channelId = 5L)))
+        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        val response = GetObjectResponse(
+            Headers.headersOf(), "link-files", null, "uploads/test", ByteArrayInputStream(byteArrayOf(1, 2, 3))
+        )
+        given(minio.getObject(any<GetObjectArgs>())).willReturn(response)
+
+        val res = controller.download(buildJwt(1L), 1L)
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+        assertThat(res.body).containsExactly(1, 2, 3)
+        assertThat(res.headers.contentType.toString()).isEqualTo("image/png")
+    }
 
     @Test
     fun `download returns 404 when attachment does not exist`() {
@@ -102,9 +173,12 @@ class AttachmentControllerTest {
         .subject(userId.toString())
         .build()
 
-    private fun buildAttachment(id: Long, filename: String, mimeType: String, sizeBytes: Long): Attachment {
+    private fun buildAttachment(
+        id: Long, filename: String, mimeType: String, sizeBytes: Long, channelId: Long? = 5L
+    ): Attachment {
         val a = Attachment(
             uploaderId = 1L,
+            channelId = channelId,
             filename = filename,
             mimeType = mimeType,
             sizeBytes = sizeBytes,

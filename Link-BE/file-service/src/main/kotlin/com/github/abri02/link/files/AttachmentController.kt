@@ -32,15 +32,21 @@ data class AttachmentResponse(
 class AttachmentController(
     private val minio: MinioClient,
     private val repo: AttachmentRepository,
+    private val channelAccess: ChannelAccessClient,
     @Value("\${minio.bucket}") private val bucket: String
 ) {
 
     @PostMapping(consumes = ["multipart/form-data"])
     fun upload(
         @AuthenticationPrincipal jwt: Jwt,
-        @RequestParam("file") file: MultipartFile
+        @RequestParam("file") file: MultipartFile,
+        @RequestParam("channelId") channelId: Long
     ): ResponseEntity<AttachmentResponse> {
         val userId = jwt.subject.toLong()
+
+        if (!channelAccess.isMember(channelId, jwt.tokenValue))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+
         val ext = file.originalFilename?.substringAfterLast('.', "")?.let { if (it.isNotBlank()) ".$it" else "" } ?: ""
         val objectKey = "uploads/${UUID.randomUUID()}$ext"
 
@@ -58,6 +64,7 @@ class AttachmentController(
         val attachment = repo.save(
             Attachment(
                 uploaderId = userId,
+                channelId = channelId,
                 filename = file.originalFilename ?: "file",
                 mimeType = file.contentType ?: "application/octet-stream",
                 sizeBytes = file.size,
@@ -75,6 +82,10 @@ class AttachmentController(
     ): ResponseEntity<ByteArray> {
         val attachment = repo.findById(id).orElse(null)
             ?: return ResponseEntity.notFound().build()
+
+        val channelId = attachment.channelId
+        if (channelId == null || !channelAccess.isMember(channelId, jwt.tokenValue))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
 
         val bytes = minio.getObject(
             GetObjectArgs.builder().bucket(bucket).`object`(attachment.objectKey).build()

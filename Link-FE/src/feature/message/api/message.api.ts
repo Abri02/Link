@@ -10,9 +10,13 @@ export interface AttachmentResponse {
   url: string;
 }
 
-export const uploadAttachment = async (file: File): Promise<AttachmentResponse> => {
+export const attachmentContentUrl = (attachmentId: number) =>
+  `${API_URL}/attachments/${attachmentId}/content`;
+
+export const uploadAttachment = async (file: File, channelId: number): Promise<AttachmentResponse> => {
   const form = new FormData();
   form.append("file", file);
+  form.append("channelId", String(channelId));
   const res = await fetch(`${API_URL}/attachments`, {
     method: "POST",
     credentials: "include",

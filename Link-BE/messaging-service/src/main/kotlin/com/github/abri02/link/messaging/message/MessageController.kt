@@ -25,7 +25,7 @@ import java.time.Instant
 data class SendMessageRequest(
     val body: String,
     val parentMessageId: Long? = null,
-    val attachmentUrl: String? = null,
+    val attachmentId: Long? = null,
     val attachmentName: String? = null,
     val attachmentMime: String? = null
 )
@@ -42,7 +42,7 @@ data class MessageResponse(
     val parentMessageId: Long?,
     val reactions: Map<String, List<Long>> = emptyMap(),
     val replyCount: Int = 0,
-    val attachmentUrl: String? = null,
+    val attachmentId: Long? = null,
     val attachmentName: String? = null,
     val attachmentMime: String? = null
 )
@@ -100,7 +100,7 @@ class MessageController(
                 authorId = userId,
                 body = req.body.trim(),
                 parentMessageId = req.parentMessageId,
-                attachmentUrl = req.attachmentUrl,
+                attachmentId = req.attachmentId,
                 attachmentName = req.attachmentName,
                 attachmentMime = req.attachmentMime
             )
@@ -241,5 +241,5 @@ class MessageController(
 
     private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap(), replyCount: Int = 0) =
         MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns, replyCount,
-            attachmentUrl, attachmentName, attachmentMime)
+            attachmentId, attachmentName, attachmentMime)
 }
