@@ -100,6 +100,28 @@ class MessageControllerTest {
     }
 
     @Test
+    fun `send stores attachment id name and mime`() {
+        givenMemberOfChannel(1L, 10L, 1L)
+        given(messages.save(any<Message>())).willAnswer { inv ->
+            (inv.arguments[0] as Message).also {
+                Message::class.java.getDeclaredField("id").apply { isAccessible = true }.set(it, 9L)
+            }
+        }
+        given(channelMembers.findByChannelId(1L)).willReturn(emptyList())
+
+        val res = controller.send(
+            buildJwt(1L), 1L,
+            SendMessageRequest("photo.png", attachmentId = 33L, attachmentName = "photo.png", attachmentMime = "image/png")
+        )
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        val body = res.body as MessageResponse
+        assertThat(body.attachmentId).isEqualTo(33L)
+        assertThat(body.attachmentName).isEqualTo("photo.png")
+        assertThat(body.attachmentMime).isEqualTo("image/png")
+    }
+
+    @Test
     fun `send with parentMessageId stores reply and does not notify channel members`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
