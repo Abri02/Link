@@ -85,7 +85,7 @@ class ChannelController(
         if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, userId))
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
 
-        return ResponseEntity.ok(channels.findByWorkspaceIdAndKindNot(workspaceId, ChannelKind.DM).map { it.toResponse() })
+        return ResponseEntity.ok(channels.findVisibleChannels(workspaceId, userId).map { it.toResponse() })
     }
 
     private fun Channel.toResponse() = ChannelResponse(id!!, workspaceId, name, kind.name, createdBy, createdAt)
