@@ -2,6 +2,7 @@ package com.github.abri02.link.messaging.workspace
 
 import com.github.abri02.link.jwt.Claims
 import com.github.abri02.link.messaging.channel.Channel
+import com.github.abri02.link.messaging.channel.ChannelKind
 import com.github.abri02.link.messaging.channel.ChannelMember
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
@@ -14,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
+import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.jwt.Jwt
@@ -99,7 +102,47 @@ class WorkspaceControllerTest {
         assertThat(res.statusCode).isEqualTo(HttpStatus.CONFLICT)
     }
 
+    @Test
+    fun `addMember joins the new member to PUBLIC channels only`() {
+        stubOwnerAddingNewUser(newUserId = 2L)
+        given(channels.findByWorkspaceIdAndKind(1L, ChannelKind.PUBLIC)).willReturn(listOf(buildChannel(10L, 1L)))
+
+        val res = controller.addMember(buildJwt(1L), 1L, AddMemberRequest(userId = 2L))
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        val saved = argumentCaptor<ChannelMember>()
+        verify(channelMembers, times(1)).save(saved.capture())
+        assertThat(saved.firstValue.channelId).isEqualTo(10L)
+        assertThat(saved.firstValue.userId).isEqualTo(2L)
+        verify(channels, never()).findByWorkspaceId(any())
+    }
+
+    // ── inviteMember ──────────────────────────────────────────────────
+
+    @Test
+    fun `inviteMember does not join the invitee to PRIVATE or DM channels`() {
+        stubOwnerAddingNewUser(newUserId = 2L)
+        given(authService.lookup("bob", "Bearer tok")).willReturn(UserLookupResult(2L, "bob", "Bob"))
+        given(channels.findByWorkspaceIdAndKind(1L, ChannelKind.PUBLIC)).willReturn(listOf(buildChannel(10L, 1L)))
+
+        val res = controller.inviteMember(buildJwt(1L), 1L, InviteRequest("bob"), "Bearer tok")
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        val saved = argumentCaptor<ChannelMember>()
+        verify(channelMembers, times(1)).save(saved.capture())
+        assertThat(saved.allValues.map { it.channelId }).containsExactly(10L)
+        verify(channels, never()).findByWorkspaceId(any())
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
+
+    private fun stubOwnerAddingNewUser(newUserId: Long) {
+        given(members.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.OWNER))
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.existsByWorkspaceIdAndUserId(1L, newUserId)).willReturn(false)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+    }
 
     private fun buildJwt(userId: Long) = Jwt.withTokenValue("tok")
         .header("alg", "RS256")

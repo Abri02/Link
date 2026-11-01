@@ -16,6 +16,7 @@ interface DmView {
 interface ChannelRepository : JpaRepository<Channel, Long> {
     fun findByWorkspaceIdAndKindNot(workspaceId: Long, kind: ChannelKind): List<Channel>
     fun findByWorkspaceId(workspaceId: Long): List<Channel>
+    fun findByWorkspaceIdAndKind(workspaceId: Long, kind: ChannelKind): List<Channel>
     fun existsByWorkspaceIdAndName(workspaceId: Long, name: String): Boolean
 
     @Query(value = """
