@@ -1,6 +1,7 @@
 package com.github.abri02.link.messaging.workspace
 
 import com.github.abri02.link.messaging.channel.Channel
+import com.github.abri02.link.messaging.channel.ChannelKind
 import com.github.abri02.link.messaging.channel.ChannelMember
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
@@ -127,7 +128,7 @@ class WorkspaceController(
             WorkspaceMember(workspaceId = id, userId = req.userId, role = req.role)
         )
 
-        channels.findByWorkspaceId(id).forEach { ch ->
+        channels.findByWorkspaceIdAndKind(id, ChannelKind.PUBLIC).forEach { ch ->
             if (!channelMembers.existsByChannelIdAndUserId(ch.id!!, req.userId)) {
                 channelMembers.save(ChannelMember(channelId = ch.id, userId = req.userId))
             }
@@ -168,7 +169,7 @@ class WorkspaceController(
             WorkspaceMember(workspaceId = id, userId = user.id, role = req.role)
         )
 
-        channels.findByWorkspaceId(id).forEach { ch ->
+        channels.findByWorkspaceIdAndKind(id, ChannelKind.PUBLIC).forEach { ch ->
             if (!channelMembers.existsByChannelIdAndUserId(ch.id!!, user.id)) {
                 channelMembers.save(ChannelMember(channelId = ch.id, userId = user.id))
             }
