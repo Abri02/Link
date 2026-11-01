@@ -88,6 +88,12 @@ class MessageController(
         if (req.body.isBlank())
             return ResponseEntity.badRequest().body(ErrorResponse("Message body cannot be empty"))
 
+        if (req.parentMessageId != null) {
+            val parent = messages.findById(req.parentMessageId).orElse(null)
+            if (parent == null || parent.channelId != channelId)
+                return ResponseEntity.badRequest().body(ErrorResponse("Parent message not found in this channel"))
+        }
+
         val message = messages.save(
             Message(
                 channelId = channelId,
@@ -170,6 +176,10 @@ class MessageController(
 
         if (!channelMembers.existsByChannelIdAndUserId(channelId, userId))
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+
+        val parent = messages.findById(messageId).orElse(null)
+        if (parent == null || parent.channelId != channelId)
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
         val replies = messages.findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(messageId)
         val reactionsByMessage = reactions.findByMessageIdIn(replies.map { it.id!! })
