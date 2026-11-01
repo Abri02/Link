@@ -8,7 +8,7 @@ export interface Message {
   parentMessageId: number | null;
   reactions: Record<string, number[]>;
   replyCount: number;
-  attachmentUrl: string | null;
+  attachmentId: number | null;
   attachmentName: string | null;
   attachmentMime: string | null;
 }
@@ -16,7 +16,7 @@ export interface Message {
 export interface SendMessageRequest {
   body: string;
   parentMessageId?: number;
-  attachmentUrl?: string;
+  attachmentId?: number;
   attachmentName?: string;
   attachmentMime?: string;
 }

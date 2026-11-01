@@ -24,7 +24,7 @@ export function MessageComposer({ channelId, channelName, parentMessageId }: Pro
       {
         body: trimmed || (attachment ? attachment.filename : ""),
         parentMessageId,
-        attachmentUrl: attachment?.url,
+        attachmentId: attachment?.id,
         attachmentName: attachment?.filename,
         attachmentMime: attachment?.mimeType,
       },
@@ -50,7 +50,7 @@ export function MessageComposer({ channelId, channelName, parentMessageId }: Pro
     e.target.value = "";
     setUploading(true);
     try {
-      const result = await uploadAttachment(file);
+      const result = await uploadAttachment(file, channelId);
       setAttachment(result);
     } catch {
       // upload failed silently — could add a toast here

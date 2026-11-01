@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Box, VStack, HStack, Text, Button, Popover, Portal, IconButton, Menu, Input, Image, Link } from "@chakra-ui/react";
 import { Smile, MoreHorizontal, Pencil, Trash2, MessageSquare, FileText, Download } from "lucide-react";
-import { API_URL } from "@/util/constants";
+import { attachmentContentUrl } from "../api/message.api";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
@@ -289,9 +289,9 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
             <Text color="rgba(244,244,246,0.25)" fontSize="11px" flexShrink={0}>(edited)</Text>
           )}
         </HStack>
-        {message.attachmentUrl && (
+        {message.attachmentId != null && (
           <AttachmentPreview
-            url={`${API_URL}${message.attachmentUrl.replace(/^\/api/, "")}`}
+            url={attachmentContentUrl(message.attachmentId)}
             name={message.attachmentName ?? "file"}
             mime={message.attachmentMime ?? "application/octet-stream"}
           />
