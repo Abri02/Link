@@ -17,6 +17,7 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.springframework.http.HttpStatus
@@ -77,6 +78,17 @@ class ReactionControllerTest {
         assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
         verify(reactions).save(any<MessageReaction>())
         verifyNoInteractions(workspaceMembers)
+    }
+
+    @Test
+    fun `add returns 400 for a system message`() {
+        given(messages.findById(1L)).willReturn(Optional.of(buildMessage(1L, channelId = 10L, type = MessageType.SYSTEM)))
+        given(channels.findById(10L)).willReturn(Optional.of(buildChannel(10L, workspaceId = 5L)))
+        given(channelMembers.existsByChannelIdAndUserId(10L, 1L)).willReturn(true)
+
+        val res = respond { controller.add(buildJwt(1L), 1L, "👍") }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(reactions, never()).save(any<MessageReaction>())
     }
 
     @Test
@@ -144,8 +156,8 @@ class ReactionControllerTest {
         .claim(Claims.USERNAME, "user$userId")
         .build()
 
-    private fun buildMessage(id: Long, channelId: Long): Message {
-        val msg = Message(channelId = channelId, authorId = 1L, body = "test")
+    private fun buildMessage(id: Long, channelId: Long, type: MessageType = MessageType.USER): Message {
+        val msg = Message(channelId = channelId, authorId = 1L, body = "test", type = type)
         Message::class.java.getDeclaredField("id").apply { isAccessible = true }.set(msg, id)
         return msg
     }

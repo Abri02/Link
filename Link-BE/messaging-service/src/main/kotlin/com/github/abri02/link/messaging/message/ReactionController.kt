@@ -41,6 +41,9 @@ class ReactionController(
 
         access.requireChannelMember(message.channelId, userId)
 
+        if (message.type == MessageType.SYSTEM)
+            return ResponseEntity.badRequest().body(ErrorResponse("System messages can't have reactions"))
+
         if (!reactions.existsByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
             reactions.save(MessageReaction(messageId = messageId, userId = userId, emoji = emoji))
 
