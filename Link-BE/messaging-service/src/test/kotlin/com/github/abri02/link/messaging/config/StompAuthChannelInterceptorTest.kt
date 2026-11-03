@@ -122,7 +122,31 @@ class StompAuthChannelInterceptorTest {
         verify(channelMembers, never()).existsByChannelIdAndUserId(any(), any())
     }
 
+    // ── SEND ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `send to an app destination passes through`() {
+        val frame = send("/app/typing")
+        assertThat(interceptor.preSend(frame, messageChannel)).isSameAs(frame)
+    }
+
+    @Test
+    fun `send straight to a broker topic or queue is dropped`() {
+        listOf("/topic/channel.5.typing", "/topic/presence", "/queue/x", "/user/queue/notifications").forEach { dest ->
+            assertThat(interceptor.preSend(send(dest), messageChannel)).`as`(dest).isNull()
+        }
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
+
+    private fun send(destination: String): org.springframework.messaging.Message<ByteArray> {
+        val accessor = StompHeaderAccessor.create(StompCommand.SEND)
+        accessor.destination = destination
+        accessor.sessionId = "s1"
+        accessor.user = JwtAuthenticationToken(buildJwt(1L), emptyList())
+        accessor.setLeaveMutable(true)
+        return MessageBuilder.createMessage(ByteArray(0), accessor.messageHeaders)
+    }
 
     private fun subscribe(destination: String, userId: Long?): org.springframework.messaging.Message<ByteArray> {
         val accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE)

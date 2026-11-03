@@ -4,6 +4,7 @@ import { Hash, Lock, Search, X, Users, AtSign } from "lucide-react";
 import { useMessages } from "@/feature/message/hooks/useMessages";
 import { useMessageSearch } from "@/feature/message/hooks/useMessageSearch";
 import { useChannelSocket } from "@/feature/message/hooks/useChannelSocket";
+import { useTypingIndicator, typingLabel } from "@/feature/message/hooks/useTypingIndicator";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
@@ -24,6 +25,7 @@ export function MessageArea() {
   const { data: conversations } = useConversations(selectedWorkspaceId);
   const currentUserId = useAuthStore((s) => s.user?.id);
   useChannelSocket(selectedChannelId);
+  const { typingUsers, notifyTyping } = useTypingIndicator(selectedChannelId, currentUserId);
 
   const [searchQuery, setSearchQuery] = useState("");
   const isSearching = searchQuery.trim().length >= 2;
@@ -115,7 +117,21 @@ export function MessageArea() {
           channelId={selectedChannelId}
           channelName={channel?.name ?? ""}
           placeholder={conversation ? `Message ${title}` : undefined}
+          onTyping={notifyTyping}
         />
+        <Text
+          data-testid="typing-indicator"
+          px="16px"
+          pb="6px"
+          mt="-6px"
+          h="18px"
+          fontSize="12px"
+          fontStyle="italic"
+          color="rgba(244,244,246,0.45)"
+          truncate
+        >
+          {typingLabel(typingUsers)}
+        </Text>
       </Box>
     </VStack>
   );

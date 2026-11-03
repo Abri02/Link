@@ -73,6 +73,13 @@ class StompAuthChannelInterceptor(
                 if (!canSubscribe(accessor)) return null
             }
 
+            StompCommand.SEND -> {
+                // Clients may only SEND to @MessageMapping handlers (/app/...). A SEND straight
+                // to /topic or /queue would be relayed by the simple broker unchecked, letting a
+                // client forge events (e.g. typing indicators) for any channel.
+                if (accessor.destination?.startsWith("/app/") != true) return null
+            }
+
             StompCommand.DISCONNECT -> {
                 publishOffline(accessor.sessionId)
             }
