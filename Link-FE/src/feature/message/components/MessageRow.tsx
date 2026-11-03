@@ -5,6 +5,7 @@ import { attachmentContentUrl } from "../api/message.api";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
+import { useMyWorkspaceRole } from "@/feature/workspace/hooks/useMyWorkspaceRole";
 import { useToggleReaction } from "../hooks/useToggleReaction";
 import { useEditMessage } from "../hooks/useEditMessage";
 import { useDeleteMessage } from "../hooks/useDeleteMessage";
@@ -106,9 +107,13 @@ function ReactionArea({ message }: { message: Message }) {
 function MessageActions({ message, onEdit }: { message: Message; onEdit: () => void }) {
   const currentUserId = useAuthStore((s) => s.user?.id);
   const openThread = useWorkspaceStore((s) => s.openThread);
+  const selectedWorkspaceId = useWorkspaceStore((s) => s.selectedWorkspaceId);
+  const role = useMyWorkspaceRole(selectedWorkspaceId);
   const { mutate: deleteMsg } = useDeleteMessage(message.channelId);
 
   const isAuthor = message.authorId === currentUserId;
+  // Owners and admins can moderate (delete) anyone's message. The backend enforces this too.
+  const canDelete = isAuthor || role === "OWNER" || role === "ADMIN";
   const isReply = message.parentMessageId != null;
 
   return (
@@ -128,7 +133,7 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
           <MessageSquare size={13} />
         </IconButton>
       )}
-      {isAuthor && (
+      {canDelete && (
       <Menu.Root>
       <Menu.Trigger asChild>
         <IconButton
@@ -147,6 +152,7 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
       <Portal>
         <Menu.Positioner>
           <Menu.Content bg="#22223A" border="1px solid #38385E" borderRadius="8px" p="4px" minW="120px">
+            {isAuthor && (
             <Menu.Item
               value="edit"
               color="#F4F4F6"
@@ -161,6 +167,7 @@ function MessageActions({ message, onEdit }: { message: Message; onEdit: () => v
                 <Text>Edit</Text>
               </HStack>
             </Menu.Item>
+            )}
             <Menu.Item
               value="delete"
               color="#FF6B6B"
