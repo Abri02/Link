@@ -6,6 +6,7 @@ import com.github.abri02.link.messaging.message.Message
 import com.github.abri02.link.messaging.message.MessageRepository
 import com.github.abri02.link.messaging.message.MessageType
 import com.github.abri02.link.messaging.message.toResponse
+import com.github.abri02.link.messaging.message.unreadCounts
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
@@ -40,7 +41,9 @@ data class ConversationResponse(
     val workspaceId: Long,
     val kind: String,
     val title: String?,
-    val members: List<ConversationMemberResponse>
+    val members: List<ConversationMemberResponse>,
+    /** Only filled in by the conversation list. Everywhere else it's 0. */
+    val unreadCount: Long = 0
 )
 
 /** Sent on `/user/queue/conversations`. `UPSERT`: show or refresh it. `REMOVED`: the user left it. */
@@ -110,7 +113,10 @@ class ConversationController(
         val membersByChannel = channelMembers.findByChannelIdIn(conversations.map { it.id!! })
             .groupBy({ it.channelId }, { it.userId })
         val names = usernames(workspaceId)
-        return ResponseEntity.ok(conversations.map { it.toResponse(membersByChannel[it.id].orEmpty(), names) })
+        val unread = messages.unreadCounts(callerId, conversations.map { it.id!! })
+        return ResponseEntity.ok(conversations.map {
+            it.toResponse(membersByChannel[it.id].orEmpty(), names).copy(unreadCount = unread[it.id] ?: 0)
+        })
     }
 
     /** Adding people to a 1-on-1 DM opens a new group DM. Adding to a group DM grows it. */

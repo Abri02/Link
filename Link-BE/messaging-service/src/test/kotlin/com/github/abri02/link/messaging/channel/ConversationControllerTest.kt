@@ -5,6 +5,7 @@ import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.message.Message
 import com.github.abri02.link.messaging.message.MessageRepository
 import com.github.abri02.link.messaging.message.MessageType
+import com.github.abri02.link.messaging.message.UnreadCountProjection
 import com.github.abri02.link.messaging.support.respond
 import com.github.abri02.link.messaging.workspace.MemberWithUsername
 import com.github.abri02.link.messaging.workspace.WorkspaceMember
@@ -198,6 +199,25 @@ class ConversationControllerTest {
         assertThat(body[0].members.map { it.userId }).containsExactly(1L, 2L)
         assertThat(body[1].title).isEqualTo("Launch")
         assertThat(body[1].members.map { it.username }).containsExactly("alice", "bob", "carol")
+    }
+
+    @Test
+    fun `list includes the caller's unread count per conversation`() {
+        callerRole(1L, WorkspaceRole.MEMBER)
+        given(channels.findConversationsForUser(ws, 1L))
+            .willReturn(listOf(conversation(40L, ChannelKind.DM, "1,2"), conversation(41L, ChannelKind.GROUP_DM, "1,2,3")))
+        given(channelMembers.findByChannelIdIn(listOf(40L, 41L))).willReturn(listOf(ChannelMember(40L, 1L), ChannelMember(41L, 1L)))
+        usernames(1L to "alice")
+        given(messages.countUnreadByChannel(1L, listOf(40L, 41L))).willReturn(listOf(object : UnreadCountProjection {
+            override fun getChannelId() = 40L
+            override fun getCount() = 2L
+        }))
+
+        val res = respond { controller.list(jwt(1L), ws) }
+
+        @Suppress("UNCHECKED_CAST")
+        val body = res.body as List<ConversationResponse>
+        assertThat(body.map { it.id to it.unreadCount }).containsExactly(40L to 2L, 41L to 0L)
     }
 
     @Test
