@@ -7,9 +7,23 @@ export interface Channel {
   createdAt: string;
 }
 
+/** The channel every workspace starts with. The backend doesn't let anyone leave it. */
+export const DEFAULT_CHANNEL = "general";
+
 export interface CreateChannelRequest {
   name: string;
   kind?: "PUBLIC" | "PRIVATE";
+}
+
+/** Sent on `/user/queue/channels` when the user joins, leaves, is added to or removed from a channel. */
+export interface ChannelEvent {
+  type: "UPSERT" | "REMOVED";
+  channel: Channel;
+}
+
+export interface ChannelMember {
+  userId: number;
+  username: string;
 }
 
 export interface ConversationMember {

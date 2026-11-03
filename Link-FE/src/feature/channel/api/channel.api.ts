@@ -1,11 +1,29 @@
 import { apiClient } from "@/util/apiClient";
-import type { Channel, Conversation, CreateChannelRequest, OpenConversationRequest } from "./channel.types";
+import type { Channel, ChannelMember, Conversation, CreateChannelRequest, OpenConversationRequest } from "./channel.types";
 
 export const listChannels = (workspaceId: number): Promise<Channel[]> =>
   apiClient(`/workspaces/${workspaceId}/channels`);
 
 export const createChannel = (workspaceId: number, data: CreateChannelRequest): Promise<Channel> =>
   apiClient(`/workspaces/${workspaceId}/channels`, { method: "POST", body: JSON.stringify(data) });
+
+export const browseChannels = (workspaceId: number): Promise<Channel[]> =>
+  apiClient(`/workspaces/${workspaceId}/channels/browse`);
+
+export const joinChannel = (channelId: number): Promise<Channel> =>
+  apiClient(`/channels/${channelId}/members/me`, { method: "POST" });
+
+export const leaveChannel = (channelId: number): Promise<void> =>
+  apiClient(`/channels/${channelId}/members/me`, { method: "DELETE" });
+
+export const listChannelMembers = (channelId: number): Promise<ChannelMember[]> =>
+  apiClient(`/channels/${channelId}/members`);
+
+export const addChannelMember = (channelId: number, userId: number): Promise<ChannelMember> =>
+  apiClient(`/channels/${channelId}/members/${userId}`, { method: "POST" });
+
+export const removeChannelMember = (channelId: number, userId: number): Promise<void> =>
+  apiClient(`/channels/${channelId}/members/${userId}`, { method: "DELETE" });
 
 export const listConversations = (workspaceId: number): Promise<Conversation[]> =>
   apiClient(`/workspaces/${workspaceId}/dms`);

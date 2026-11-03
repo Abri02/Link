@@ -1,5 +1,5 @@
 import { HStack, Text, Box } from "@chakra-ui/react";
-import { Hash } from "lucide-react";
+import { Hash, Lock } from "lucide-react";
 import { useNotificationStore } from "@/feature/notification/stores/notificationStore";
 import type { Channel } from "../api/channel.types";
 
@@ -27,7 +27,7 @@ export function ChannelItem({ channel, isSelected, onClick }: Props) {
       gap="6px"
       outline="none"
     >
-      <Hash size={14} strokeWidth={1.5} />
+      {channel.kind === "PRIVATE" ? <Lock size={13} strokeWidth={1.5} /> : <Hash size={14} strokeWidth={1.5} />}
       <Text fontSize="14px" fontWeight={isSelected || unread > 0 ? "600" : "400"} truncate flex="1">
         {channel.name}
       </Text>

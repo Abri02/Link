@@ -12,16 +12,26 @@ interface ChannelRepository : JpaRepository<Channel, Long> {
     fun findByWorkspaceIdAndKind(workspaceId: Long, kind: ChannelKind): List<Channel>
     fun existsByWorkspaceIdAndName(workspaceId: Long, name: String): Boolean
 
-    /** PUBLIC channels of the workspace plus the PRIVATE ones the user is a member of. DMs are excluded. */
+    /** PUBLIC and PRIVATE channels of the workspace that the user is a member of. DMs are excluded. */
     @Query("""
         SELECT c FROM Channel c
         WHERE c.workspaceId = :workspaceId
-          AND (c.kind = com.github.abri02.link.messaging.channel.ChannelKind.PUBLIC
-               OR (c.kind = com.github.abri02.link.messaging.channel.ChannelKind.PRIVATE
-                   AND EXISTS (SELECT 1 FROM ChannelMember cm WHERE cm.channelId = c.id AND cm.userId = :userId)))
+          AND c.kind IN (com.github.abri02.link.messaging.channel.ChannelKind.PUBLIC,
+                         com.github.abri02.link.messaging.channel.ChannelKind.PRIVATE)
+          AND EXISTS (SELECT 1 FROM ChannelMember cm WHERE cm.channelId = c.id AND cm.userId = :userId)
         ORDER BY c.id
     """)
-    fun findVisibleChannels(@Param("workspaceId") workspaceId: Long, @Param("userId") userId: Long): List<Channel>
+    fun findJoinedChannels(@Param("workspaceId") workspaceId: Long, @Param("userId") userId: Long): List<Channel>
+
+    /** PUBLIC channels of the workspace that the user is not a member of, by name. */
+    @Query("""
+        SELECT c FROM Channel c
+        WHERE c.workspaceId = :workspaceId
+          AND c.kind = com.github.abri02.link.messaging.channel.ChannelKind.PUBLIC
+          AND NOT EXISTS (SELECT 1 FROM ChannelMember cm WHERE cm.channelId = c.id AND cm.userId = :userId)
+        ORDER BY c.name
+    """)
+    fun findBrowsableChannels(@Param("workspaceId") workspaceId: Long, @Param("userId") userId: Long): List<Channel>
 
     fun findByWorkspaceIdAndMemberKey(workspaceId: Long, memberKey: String): Channel?
 

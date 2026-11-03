@@ -9,12 +9,13 @@ interface Props {
 
 export function CreateChannelDialog({ workspaceId, onClose }: Props) {
   const [name, setName] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const { mutate, isPending, error } = useCreateChannel(workspaceId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    mutate(name.trim(), { onSuccess: onClose });
+    mutate({ name: name.trim(), kind: isPrivate ? "PRIVATE" : "PUBLIC" }, { onSuccess: onClose });
   };
 
   return (
@@ -40,6 +41,15 @@ export function CreateChannelDialog({ workspaceId, onClose }: Props) {
           </Field.ErrorText>
         )}
       </Field.Root>
+      <Box as="label" display="flex" alignItems="center" gap="8px" color="rgba(244,244,246,0.7)" fontSize="13px" cursor="pointer">
+        <input
+          type="checkbox"
+          checked={isPrivate}
+          onChange={(e) => setIsPrivate(e.target.checked)}
+          style={{ accentColor: "#6C63FF" }}
+        />
+        Private (only people you add can see it)
+      </Box>
       <Button
         type="submit"
         loading={isPending}

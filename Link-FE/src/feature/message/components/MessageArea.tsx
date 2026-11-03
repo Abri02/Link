@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { VStack, HStack, Box, Text, Input, IconButton } from "@chakra-ui/react";
-import { Hash, Search, X, Users, AtSign } from "lucide-react";
+import { Hash, Lock, Search, X, Users, AtSign } from "lucide-react";
 import { useMessages } from "@/feature/message/hooks/useMessages";
 import { useMessageSearch } from "@/feature/message/hooks/useMessageSearch";
 import { useChannelSocket } from "@/feature/message/hooks/useChannelSocket";
@@ -9,6 +9,7 @@ import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { useConversations } from "@/feature/channel/hooks/useConversations";
 import { ConversationMenu } from "@/feature/channel/components/ConversationMenu";
+import { ChannelMenu } from "@/feature/channel/components/ChannelMenu";
 import { conversationName } from "@/feature/channel/api/channel.types";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { MessageList } from "./MessageList";
@@ -31,7 +32,7 @@ export function MessageArea() {
   const channel = channels?.find((c) => c.id === selectedChannelId);
   const conversation = conversations?.find((c) => c.id === selectedChannelId);
   const title = conversation ? conversationName(conversation, currentUserId) : channel?.name ?? "";
-  const HeaderIcon = !conversation ? Hash : conversation.kind === "GROUP_DM" ? Users : AtSign;
+  const HeaderIcon = !conversation ? (channel?.kind === "PRIVATE" ? Lock : Hash) : conversation.kind === "GROUP_DM" ? Users : AtSign;
 
   if (!selectedWorkspaceId) {
     return (
@@ -61,6 +62,7 @@ export function MessageArea() {
           {title}
         </Text>
         {conversation && <ConversationMenu conversation={conversation} />}
+        {channel && <ChannelMenu channel={channel} />}
         <HStack gap="4px" w="200px">
           <Search size={14} color="rgba(244,244,246,0.35)" />
           <Input

@@ -75,8 +75,24 @@ class ChannelController(
 
         access.requireMember(workspaceId, userId)
 
-        return ResponseEntity.ok(channels.findVisibleChannels(workspaceId, userId).map { it.toResponse() })
+        return ResponseEntity.ok(channels.findJoinedChannels(workspaceId, userId).map { it.toResponse() })
     }
 
-    private fun Channel.toResponse() = ChannelResponse(id!!, workspaceId, name, kind.name, createdBy, createdAt)
+    /** Public channels the caller can join. Guests only use the channels they were added to. */
+    @GetMapping("/browse")
+    fun browse(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable workspaceId: Long
+    ): ResponseEntity<*> {
+        val userId = jwt.subject.toLong()
+
+        access.requireRole(
+            workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER,
+            reason = "Guests cannot browse channels"
+        )
+
+        return ResponseEntity.ok(channels.findBrowsableChannels(workspaceId, userId).map { it.toResponse() })
+    }
 }
+
+fun Channel.toResponse() = ChannelResponse(id!!, workspaceId, name, kind.name, createdBy, createdAt)

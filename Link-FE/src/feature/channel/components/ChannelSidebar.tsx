@@ -19,6 +19,7 @@ import { ConversationItem } from "./ConversationItem";
 import { NewMessageDialog } from "./NewMessageDialog";
 import { MemberList } from "./MemberList";
 import { CreateChannelDialog } from "./CreateChannelDialog";
+import { BrowseChannelsDialog } from "./BrowseChannelsDialog";
 import { SidebarFooter } from "./SidebarFooter";
 
 const SIDEBAR_STYLES = {
@@ -39,6 +40,7 @@ export function ChannelSidebar() {
   const { mutate: openConversation } = useOpenConversation(selectedWorkspaceId ?? 0);
   const { open, onOpen, onClose } = useDisclosure();
   const { open: inviteOpen, onOpen: onInviteOpen, onClose: onInviteClose } = useDisclosure();
+  const { open: browseOpen, onOpen: onBrowseOpen, onClose: onBrowseClose } = useDisclosure();
   const { open: newMessageOpen, onOpen: onNewMessageOpen, onClose: onNewMessageClose } = useDisclosure();
   const role = useMyWorkspaceRole(selectedWorkspaceId);
   const canCreate = role === "OWNER" || role === "ADMIN";
@@ -112,6 +114,7 @@ export function ChannelSidebar() {
         onSelect={selectChannel}
         onAddClick={onOpen}
         canCreate={canCreate}
+        onBrowseClick={role && role !== "GUEST" ? onBrowseOpen : undefined}
       />
 
       {(role !== "GUEST" || (conversations && conversations.length > 0)) && (
@@ -196,6 +199,20 @@ export function ChannelSidebar() {
                 New channel
               </Dialog.Title>
               <CreateChannelDialog workspaceId={selectedWorkspaceId} onClose={onClose} />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={browseOpen} onOpenChange={(e) => !e.open && onBrowseClose()}>
+        <Portal>
+          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
+          <Dialog.Positioner>
+            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
+              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
+                Browse channels
+              </Dialog.Title>
+              {browseOpen && <BrowseChannelsDialog workspaceId={selectedWorkspaceId} onClose={onBrowseClose} />}
             </Dialog.Content>
           </Dialog.Positioner>
         </Portal>

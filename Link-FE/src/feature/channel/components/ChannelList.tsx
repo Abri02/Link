@@ -1,5 +1,5 @@
 import { Box, VStack, HStack, Text, Spinner, IconButton } from "@chakra-ui/react";
-import { Plus } from "lucide-react";
+import { Plus, Compass } from "lucide-react";
 import type { Channel } from "../api/channel.types";
 import { ChannelItem } from "./ChannelItem";
 
@@ -10,15 +10,32 @@ interface Props {
   onSelect: (id: number) => void;
   onAddClick: () => void;
   canCreate?: boolean;
+  /** Guests can't browse or join channels. */
+  onBrowseClick?: () => void;
 }
 
-export function ChannelList({ channels, isLoading, selectedChannelId, onSelect, onAddClick, canCreate }: Props) {
+export function ChannelList({ channels, isLoading, selectedChannelId, onSelect, onAddClick, canCreate, onBrowseClick }: Props) {
   return (
     <Box flex="1" overflow="auto" py="8px">
       <HStack px="12px" py="4px" mb="2px">
         <Text color="rgba(244,244,246,0.4)" fontSize="11px" fontWeight="600" letterSpacing="0.06em" flex="1">
           CHANNELS
         </Text>
+        {onBrowseClick && (
+          <IconButton
+            size="xs"
+            variant="ghost"
+            color="rgba(244,244,246,0.4)"
+            _hover={{ color: "#F4F4F6" }}
+            aria-label="Browse channels"
+            onClick={onBrowseClick}
+            h="20px"
+            w="20px"
+            minW="0"
+          >
+            <Compass size={12} />
+          </IconButton>
+        )}
         {canCreate && (
           <IconButton
             size="xs"
