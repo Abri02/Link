@@ -303,12 +303,80 @@ class MessageControllerTest {
     // ── delete ────────────────────────────────────────────────────────
 
     @Test
-    fun `delete returns 403 when caller is not the author`() {
+    fun `delete returns 403 when a plain member deletes another user's message`() {
         val msg = buildMessage(id = 1L, channelId = 1L, authorId = 2L, body = "Hi")
         given(messages.findById(1L)).willReturn(Optional.of(msg))
+        givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L)
 
-        val res = controller.delete(buildJwt(1L), 1L, 1L)
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verify(messages, never()).save(any<Message>())
+        verifyNoInteractions(broker)
+    }
+
+    @Test
+    fun `delete returns 403 when a guest deletes another user's message`() {
+        val msg = buildMessage(id = 1L, channelId = 1L, authorId = 2L, body = "Hi")
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+        givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L, role = WorkspaceRole.GUEST)
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verify(messages, never()).save(any<Message>())
+    }
+
+    @Test
+    fun `delete lets an ADMIN delete another user's message`() {
+        val msg = buildMessage(id = 1L, channelId = 1L, authorId = 2L, body = "Hi")
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+        given(messages.save(any<Message>())).willReturn(msg)
+        givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L, role = WorkspaceRole.ADMIN)
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        assertThat(msg.deletedAt).isNotNull()
+        verify(broker).convertAndSend(eq("/topic/channel.1.deletes"), any<DeletedEvent>())
+    }
+
+    @Test
+    fun `delete lets an OWNER delete another user's message`() {
+        val msg = buildMessage(id = 1L, channelId = 1L, authorId = 2L, body = "Hi")
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+        given(messages.save(any<Message>())).willReturn(msg)
+        givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L, role = WorkspaceRole.OWNER)
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        assertThat(msg.deletedAt).isNotNull()
+    }
+
+    @Test
+    fun `delete returns 403 when an ADMIN is not a member of the channel`() {
+        val msg = buildMessage(id = 1L, channelId = 1L, authorId = 2L, body = "Hi")
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
+        given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(false)
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verify(messages, never()).save(any<Message>())
+    }
+
+    @Test
+    fun `delete returns 404 when message does not exist`() {
+        given(messages.findById(1L)).willReturn(Optional.empty())
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `delete returns 404 when message belongs to another channel`() {
+        val msg = buildMessage(id = 1L, channelId = 2L, authorId = 1L, body = "Hi")
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
     @Test
@@ -323,12 +391,14 @@ class MessageControllerTest {
 
     // ── helpers ───────────────────────────────────────────────────────
 
-    private fun givenMemberOfChannel(channelId: Long, workspaceId: Long, userId: Long) {
+    private fun givenMemberOfChannel(
+        channelId: Long, workspaceId: Long, userId: Long, role: WorkspaceRole = WorkspaceRole.MEMBER
+    ) {
         given(channels.findById(channelId)).willReturn(Optional.of(buildChannel(channelId, workspaceId)))
         given(channelMembers.existsByChannelIdAndUserId(channelId, userId)).willReturn(true)
         given(workspaces.existsById(workspaceId)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, userId))
-            .willReturn(WorkspaceMember(workspaceId = workspaceId, userId = userId, role = WorkspaceRole.MEMBER))
+            .willReturn(WorkspaceMember(workspaceId = workspaceId, userId = userId, role = role))
     }
 
     private fun buildJwt(userId: Long) = Jwt.withTokenValue("tok")
