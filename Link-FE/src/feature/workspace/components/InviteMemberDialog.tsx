@@ -21,7 +21,8 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
 
   return (
     <Box as="form" onSubmit={handleSubmit} display="flex" flexDirection="column" gap="16px">
-      <Field.Root>
+      {/* ErrorText only renders while the field is invalid. */}
+      <Field.Root invalid={!!error}>
         <Field.Label color="rgba(244,244,246,0.7)" fontSize="13px">
           Username or email
         </Field.Label>
