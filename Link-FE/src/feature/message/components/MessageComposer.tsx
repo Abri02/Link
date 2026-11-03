@@ -10,9 +10,11 @@ interface Props {
   parentMessageId?: number;
   /** Overrides the default "Message #channel" placeholder, e.g. for DMs. */
   placeholder?: string;
+  /** Called on every keystroke that changes the text; the caller throttles it. */
+  onTyping?: () => void;
 }
 
-export function MessageComposer({ channelId, channelName, parentMessageId, placeholder }: Props) {
+export function MessageComposer({ channelId, channelName, parentMessageId, placeholder, onTyping }: Props) {
   const [body, setBody] = useState("");
   const [attachment, setAttachment] = useState<AttachmentResponse | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -119,7 +121,10 @@ export function MessageComposer({ channelId, channelName, parentMessageId, place
 
         <Input
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            setBody(e.target.value);
+            if (e.target.value.trim()) onTyping?.();
+          }}
           onKeyDown={onKeyDown}
           placeholder={placeholder ?? `Message #${channelName}`}
           bg="#22223A"
