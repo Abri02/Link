@@ -1,11 +1,11 @@
 import { VStack, Box, HStack, Text, IconButton, Dialog, Portal } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
-import { UserPlus, LogOut } from "lucide-react";
+import { UserPlus, LogOut, Plus } from "lucide-react";
 import { Tip } from "@/components/Tip";
 import { InviteMemberDialog } from "@/feature/workspace/components/InviteMemberDialog";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
-import { useDms } from "@/feature/channel/hooks/useDms";
-import { useOpenDm } from "@/feature/channel/hooks/useOpenDm";
+import { useConversations } from "@/feature/channel/hooks/useConversations";
+import { useOpenConversation } from "@/feature/channel/hooks/useOpenConversation";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
@@ -15,7 +15,8 @@ import { useRemoveMember } from "@/feature/workspace/hooks/useRemoveMember";
 import { useLeaveWorkspace } from "@/feature/workspace/hooks/useLeaveWorkspace";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { ChannelList } from "./ChannelList";
-import { DmItem } from "./DmItem";
+import { ConversationItem } from "./ConversationItem";
+import { NewMessageDialog } from "./NewMessageDialog";
 import { MemberList } from "./MemberList";
 import { CreateChannelDialog } from "./CreateChannelDialog";
 import { SidebarFooter } from "./SidebarFooter";
@@ -34,10 +35,11 @@ export function ChannelSidebar() {
   const { data: workspaces } = useWorkspaces();
   const { data: channels, isLoading } = useChannels(selectedWorkspaceId);
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
-  const { data: dms } = useDms(selectedWorkspaceId);
-  const { mutate: openDm } = useOpenDm(selectedWorkspaceId ?? 0);
+  const { data: conversations } = useConversations(selectedWorkspaceId);
+  const { mutate: openConversation } = useOpenConversation(selectedWorkspaceId ?? 0);
   const { open, onOpen, onClose } = useDisclosure();
   const { open: inviteOpen, onOpen: onInviteOpen, onClose: onInviteClose } = useDisclosure();
+  const { open: newMessageOpen, onOpen: onNewMessageOpen, onClose: onNewMessageClose } = useDisclosure();
   const role = useMyWorkspaceRole(selectedWorkspaceId);
   const canCreate = role === "OWNER" || role === "ADMIN";
   const changeRole = useChangeRole(selectedWorkspaceId ?? 0);
@@ -112,8 +114,8 @@ export function ChannelSidebar() {
         canCreate={canCreate}
       />
 
-      {dms && dms.length > 0 && (
-        <Box borderTop="1px solid #2A2A45" flexShrink={0} py="8px">
+      {(role !== "GUEST" || (conversations && conversations.length > 0)) && (
+        <Box borderTop="1px solid #2A2A45" flexShrink={0} py="8px" position="relative">
           <Text
             color="rgba(244,244,246,0.3)"
             fontSize="11px"
@@ -124,13 +126,33 @@ export function ChannelSidebar() {
           >
             DIRECT MESSAGES
           </Text>
+          {/* Guests can't start conversations (the backend returns 403), but they see the ones they were added to. */}
+          {role !== "GUEST" && (
+            <Tip label="New message" placement="right">
+              <IconButton
+                onClick={onNewMessageOpen}
+                position="absolute"
+                top="5px"
+                right="10px"
+                size="2xs"
+                minW="18px"
+                h="18px"
+                bg="transparent"
+                color="rgba(244,244,246,0.4)"
+                _hover={{ color: "#6C63FF", bg: "transparent" }}
+                aria-label="New message"
+              >
+                <Plus size={13} />
+              </IconButton>
+            </Tip>
+          )}
           <VStack gap="1px" alignItems="stretch" px="6px">
-            {dms.map((dm) => (
-              <DmItem
-                key={dm.id}
-                dm={dm}
-                isSelected={dm.id === selectedChannelId}
-                onClick={() => selectChannel(dm.id)}
+            {conversations?.map((c) => (
+              <ConversationItem
+                key={c.id}
+                conversation={c}
+                isSelected={c.id === selectedChannelId}
+                onClick={() => selectChannel(c.id)}
               />
             ))}
           </VStack>
@@ -145,7 +167,7 @@ export function ChannelSidebar() {
               // Guests can't open DMs (the backend returns 403), so their member names aren't clickable.
               role === "GUEST"
                 ? undefined
-                : (userId) => openDm(userId, { onSuccess: (dm) => selectChannel(dm.id) })
+                : (userId) => openConversation({ userIds: [userId] }, { onSuccess: (c) => selectChannel(c.id) })
             }
             onChangeRole={
               role === "OWNER" ? (userId, newRole) => changeRole.mutate({ userId, role: newRole }) : undefined
@@ -174,6 +196,20 @@ export function ChannelSidebar() {
                 New channel
               </Dialog.Title>
               <CreateChannelDialog workspaceId={selectedWorkspaceId} onClose={onClose} />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={newMessageOpen} onOpenChange={(e) => !e.open && onNewMessageClose()}>
+        <Portal>
+          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
+          <Dialog.Positioner>
+            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
+              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
+                New message
+              </Dialog.Title>
+              {newMessageOpen && <NewMessageDialog workspaceId={selectedWorkspaceId} onClose={onNewMessageClose} />}
             </Dialog.Content>
           </Dialog.Positioner>
         </Portal>

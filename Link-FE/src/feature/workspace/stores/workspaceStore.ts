@@ -7,6 +7,7 @@ interface WorkspaceState {
   threadMessageId: number | null;
   selectWorkspace: (id: number | null) => void;
   selectChannel: (id: number) => void;
+  clearChannel: () => void;
   openThread: (messageId: number) => void;
   closeThread: () => void;
 }
@@ -20,6 +21,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     useNotificationStore.getState().clear(id);
     set({ selectedChannelId: id, threadMessageId: null });
   },
+  clearChannel: () => set({ selectedChannelId: null, threadMessageId: null }),
   openThread: (messageId) => set({ threadMessageId: messageId }),
   closeThread: () => set({ threadMessageId: null }),
 }));

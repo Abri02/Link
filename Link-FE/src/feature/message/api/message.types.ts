@@ -11,6 +11,8 @@ export interface Message {
   attachmentId: number | null;
   attachmentName: string | null;
   attachmentMime: string | null;
+  /** SYSTEM messages record conversation events (join, leave, rename). */
+  type: "USER" | "SYSTEM";
 }
 
 export interface SendMessageRequest {

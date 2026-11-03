@@ -9,7 +9,7 @@ test.describe("Direct messages", () => {
     await a.getByRole("button", { name: userB.username, exact: true }).click();
     const aDms = a.getByText("DIRECT MESSAGES", { exact: true }).locator("..");
     await expect(aDms.getByRole("button", { name: new RegExp(userB.username) })).toBeVisible();
-    const composer = a.getByPlaceholder("Message #", { exact: true });
+    const composer = a.getByPlaceholder(`Message ${userB.username}`, { exact: true });
     await expect(composer).toBeVisible();
 
     // B reloads to pick up the new DM, stays in #general's workspace without opening the DM,

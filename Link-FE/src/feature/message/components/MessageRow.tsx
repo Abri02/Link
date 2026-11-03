@@ -332,8 +332,24 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
   );
 }
 
+/** Conversation events (join, leave, rename): muted, centered, no actions. */
+function SystemMessageRow({ message }: { message: Message }) {
+  return (
+    <Box px="16px" py="6px" textAlign="center">
+      <Text as="span" color="rgba(244,244,246,0.4)" fontSize="12px" fontStyle="italic">
+        {message.body}
+      </Text>
+      <Text as="span" color="rgba(244,244,246,0.25)" fontSize="11px" ml="6px">
+        {formatTime(message.createdAt)}
+      </Text>
+    </Box>
+  );
+}
+
 export function MessageRow({ message, prevAuthorId, authorUsername }: Props) {
   const isOnline = usePresenceStore((s) => s.onlineIds.has(message.authorId));
+
+  if (message.type === "SYSTEM") return <SystemMessageRow message={message} />;
 
   if (prevAuthorId === message.authorId) {
     return (

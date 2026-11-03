@@ -128,3 +128,21 @@ export async function setupTwoUsersInWorkspace(browser: Browser, tag: string): P
     },
   };
 }
+
+/**
+ * Signs up one more user in a new browser context, has `owner` invite them as a MEMBER and opens
+ * the workspace for them. Close the returned context yourself.
+ */
+export async function addUserToWorkspace(browser: Browser, owner: Page, wsId: number, wsName: string, tag: string) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const user = uniqueUser(tag);
+  await signUp(page, user.email, user.username);
+  const invited = await owner.request.post(`${API}/workspaces/${wsId}/members/invite`, {
+    data: { identifier: user.username },
+  });
+  if (!invited.ok()) throw new Error(`Inviting ${user.username} failed with ${invited.status()}`);
+  await page.reload();
+  await selectWorkspace(page, wsName);
+  return { page, ctx, user };
+}
