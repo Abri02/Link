@@ -7,6 +7,9 @@ import com.github.abri02.link.messaging.channel.ChannelRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceMember
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
+import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.support.respond
+import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -28,6 +31,7 @@ import java.util.Optional
 @ExtendWith(MockitoExtension::class)
 class MessageControllerTest {
 
+    @Mock private lateinit var workspaces: WorkspaceRepository
     @Mock private lateinit var channels: ChannelRepository
     @Mock private lateinit var channelMembers: ChannelMemberRepository
     @Mock private lateinit var workspaceMembers: WorkspaceMemberRepository
@@ -39,7 +43,10 @@ class MessageControllerTest {
 
     @BeforeEach
     fun setup() {
-        controller = MessageController(channels, channelMembers, workspaceMembers, messages, reactions, broker)
+        controller = MessageController(
+            WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers),
+            channelMembers, messages, reactions, broker
+        )
     }
 
     // ── send ──────────────────────────────────────────────────────────
@@ -48,7 +55,7 @@ class MessageControllerTest {
     fun `send returns 404 when channel does not exist`() {
         given(channels.findById(99L)).willReturn(Optional.empty())
 
-        val res = controller.send(buildJwt(1L), 99L, SendMessageRequest("Hello"))
+        val res = respond { controller.send(buildJwt(1L), 99L, SendMessageRequest("Hello")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
@@ -57,7 +64,7 @@ class MessageControllerTest {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(false)
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello"))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
@@ -65,10 +72,11 @@ class MessageControllerTest {
     fun `send returns 403 for GUEST role`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaces.existsById(10L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.GUEST))
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello"))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
@@ -76,10 +84,11 @@ class MessageControllerTest {
     fun `send returns 400 for blank body`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaces.existsById(10L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.MEMBER))
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("   "))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("   ")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
     }
 
@@ -87,12 +96,13 @@ class MessageControllerTest {
     fun `send returns 201 with saved message`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaces.existsById(10L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.MEMBER))
         given(messages.save(any<Message>())).willReturn(buildMessage(id = 7L, channelId = 1L, authorId = 1L, body = "Hello"))
         given(channelMembers.findByChannelId(1L)).willReturn(emptyList())
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello"))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
         val body = res.body as MessageResponse
         assertThat(body.id).isEqualTo(7L)
@@ -125,6 +135,7 @@ class MessageControllerTest {
     fun `send with parentMessageId stores reply and does not notify channel members`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaces.existsById(10L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.MEMBER))
         given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 1L, authorId = 2L, body = "Parent")))
@@ -132,7 +143,7 @@ class MessageControllerTest {
             buildMessage(id = 8L, channelId = 1L, authorId = 1L, body = "Reply", parentMessageId = 5L)
         )
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L)) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
         val body = res.body as MessageResponse
         assertThat(body.parentMessageId).isEqualTo(5L)
@@ -145,7 +156,7 @@ class MessageControllerTest {
         givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L)
         given(messages.findById(5L)).willReturn(Optional.empty())
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L)) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         verify(messages, never()).save(any<Message>())
     }
@@ -155,7 +166,7 @@ class MessageControllerTest {
         givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L)
         given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 2L, authorId = 2L, body = "Elsewhere")))
 
-        val res = controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L))
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L)) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
         verify(messages, never()).save(any<Message>())
         verifyNoInteractions(broker)
@@ -165,52 +176,52 @@ class MessageControllerTest {
 
     @Test
     fun `thread returns 404 when channel does not exist`() {
-        given(channels.existsById(99L)).willReturn(false)
+        given(channels.findById(99L)).willReturn(Optional.empty())
 
-        val res = controller.thread(buildJwt(1L), 99L, 5L)
+        val res = respond { controller.thread(buildJwt(1L), 99L, 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
     @Test
     fun `thread returns 403 when caller is not a channel member`() {
-        given(channels.existsById(1L)).willReturn(true)
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(false)
 
-        val res = controller.thread(buildJwt(1L), 1L, 5L)
+        val res = respond { controller.thread(buildJwt(1L), 1L, 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test
     fun `thread returns 404 when message does not exist`() {
-        given(channels.existsById(1L)).willReturn(true)
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
         given(messages.findById(5L)).willReturn(Optional.empty())
 
-        val res = controller.thread(buildJwt(1L), 1L, 5L)
+        val res = respond { controller.thread(buildJwt(1L), 1L, 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
     @Test
     fun `thread returns 404 when message belongs to another channel`() {
-        given(channels.existsById(1L)).willReturn(true)
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
         given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 2L, authorId = 2L, body = "Secret")))
 
-        val res = controller.thread(buildJwt(1L), 1L, 5L)
+        val res = respond { controller.thread(buildJwt(1L), 1L, 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
         verify(messages, never()).findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(any())
     }
 
     @Test
     fun `thread returns replies when message belongs to the channel`() {
-        given(channels.existsById(1L)).willReturn(true)
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
         given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 1L, authorId = 2L, body = "Parent")))
         given(messages.findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(5L))
             .willReturn(listOf(buildMessage(id = 6L, channelId = 1L, authorId = 1L, body = "Reply", parentMessageId = 5L)))
         given(reactions.findByMessageIdIn(listOf(6L))).willReturn(emptyList())
 
-        val res = controller.thread(buildJwt(1L), 1L, 5L)
+        val res = respond { controller.thread(buildJwt(1L), 1L, 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
         @Suppress("UNCHECKED_CAST")
         val body = res.body as List<MessageResponse>
@@ -221,30 +232,30 @@ class MessageControllerTest {
 
     @Test
     fun `list returns 404 when channel does not exist`() {
-        given(channels.existsById(99L)).willReturn(false)
+        given(channels.findById(99L)).willReturn(Optional.empty())
 
-        val res = controller.list(buildJwt(1L), 99L, before = null, limit = 50, q = null)
+        val res = respond { controller.list(buildJwt(1L), 99L, before = null, limit = 50, q = null) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
     @Test
     fun `list returns 403 when caller is not a channel member`() {
-        given(channels.existsById(1L)).willReturn(true)
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(false)
 
-        val res = controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = null)
+        val res = respond { controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = null) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test
     fun `list returns empty list when no messages exist`() {
-        given(channels.existsById(1L)).willReturn(true)
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
         given(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(any<Long>(), any<Pageable>()))
             .willReturn(emptyList())
         given(reactions.findByMessageIdIn(emptyList())).willReturn(emptyList())
 
-        val res = controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = null)
+        val res = respond { controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = null) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
         @Suppress("UNCHECKED_CAST")
         assertThat(res.body as List<MessageResponse>).isEmpty()
@@ -315,6 +326,7 @@ class MessageControllerTest {
     private fun givenMemberOfChannel(channelId: Long, workspaceId: Long, userId: Long) {
         given(channels.findById(channelId)).willReturn(Optional.of(buildChannel(channelId, workspaceId)))
         given(channelMembers.existsByChannelIdAndUserId(channelId, userId)).willReturn(true)
+        given(workspaces.existsById(workspaceId)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, userId))
             .willReturn(WorkspaceMember(workspaceId = workspaceId, userId = userId, role = WorkspaceRole.MEMBER))
     }

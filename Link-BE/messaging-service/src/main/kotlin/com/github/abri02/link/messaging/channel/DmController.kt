@@ -1,7 +1,7 @@
 package com.github.abri02.link.messaging.channel
 
+import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
-import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -27,7 +27,7 @@ data class DmResponse(
 @RestController
 @RequestMapping("/workspaces/{workspaceId}/dms")
 class DmController(
-    private val workspaces: WorkspaceRepository,
+    private val access: WorkspaceAccess,
     private val workspaceMembers: WorkspaceMemberRepository,
     private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository
@@ -42,14 +42,10 @@ class DmController(
     ): ResponseEntity<*> {
         val callerId = jwt.subject.toLong()
 
-        if (!workspaces.existsById(workspaceId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
-
-        val callerMember = workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, callerId)
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
-
-        if (callerMember.role == WorkspaceRole.GUEST)
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Guests cannot open direct messages"))
+        access.requireRole(
+            workspaceId, callerId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER,
+            reason = "Guests cannot open direct messages"
+        )
 
         if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, req.targetUserId))
             return ResponseEntity.badRequest().body(ErrorResponse("Target user is not a member of this workspace"))
@@ -85,11 +81,7 @@ class DmController(
     ): ResponseEntity<*> {
         val callerId = jwt.subject.toLong()
 
-        if (!workspaces.existsById(workspaceId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
-
-        if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, callerId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
+        access.requireMember(workspaceId, callerId)
 
         val dms = channels.findDmsForUser(workspaceId, callerId)
             .map { DmResponse(it.getId(), it.getWorkspaceId(), it.getOtherUserId(), it.getOtherUsername()) }

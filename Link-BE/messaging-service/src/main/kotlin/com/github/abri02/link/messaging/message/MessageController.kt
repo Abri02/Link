@@ -1,8 +1,7 @@
 package com.github.abri02.link.messaging.message
 
+import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
-import com.github.abri02.link.messaging.channel.ChannelRepository
-import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
@@ -58,9 +57,8 @@ data class ErrorResponse(val message: String)
 @RestController
 @RequestMapping("/channels/{channelId}/messages")
 class MessageController(
-    private val channels: ChannelRepository,
+    private val access: WorkspaceAccess,
     private val channelMembers: ChannelMemberRepository,
-    private val workspaceMembers: WorkspaceMemberRepository,
     private val messages: MessageRepository,
     private val reactions: MessageReactionRepository,
     private val broker: SimpMessagingTemplate
@@ -75,15 +73,11 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        val channel = channels.findById(channelId).orElse(null)
-            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Channel not found"))
-
-        if (!channelMembers.existsByChannelIdAndUserId(channelId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
-
-        val role = workspaceMembers.findByWorkspaceIdAndUserId(channel.workspaceId, userId)?.role
-        if (role == WorkspaceRole.GUEST)
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Guests cannot send messages"))
+        val channel = access.requireChannelMember(channelId, userId)
+        access.requireRole(
+            channel.workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER,
+            reason = "Guests cannot send messages"
+        )
 
         if (req.body.isBlank())
             return ResponseEntity.badRequest().body(ErrorResponse("Message body cannot be empty"))
@@ -130,11 +124,7 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        if (!channels.existsById(channelId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Channel not found"))
-
-        if (!channelMembers.existsByChannelIdAndUserId(channelId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+        access.requireChannelMember(channelId, userId)
 
         val pageSize = limit.coerceIn(1, 100)
         val page = PageRequest.of(0, pageSize)
@@ -171,11 +161,7 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        if (!channels.existsById(channelId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Channel not found"))
-
-        if (!channelMembers.existsByChannelIdAndUserId(channelId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+        access.requireChannelMember(channelId, userId)
 
         val parent = messages.findById(messageId).orElse(null)
         if (parent == null || parent.channelId != channelId)

@@ -6,6 +6,8 @@ import com.github.abri02.link.messaging.channel.ChannelKind
 import com.github.abri02.link.messaging.channel.ChannelMember
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
+import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.support.respond
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -34,7 +36,10 @@ class WorkspaceControllerTest {
 
     @BeforeEach
     fun setup() {
-        controller = WorkspaceController(workspaces, members, channels, channelMembers, authService)
+        controller = WorkspaceController(
+            workspaces, members, channels, channelMembers, authService,
+            WorkspaceAccess(workspaces, members, channels, channelMembers)
+        )
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -75,20 +80,32 @@ class WorkspaceControllerTest {
     // ── addMember ─────────────────────────────────────────────────────
 
     @Test
+    fun `addMember returns 404 when workspace does not exist`() {
+        given(workspaces.existsById(99L)).willReturn(false)
+
+        val res = respond { controller.addMember(buildJwt(1L), 99L, AddMemberRequest(userId = 2L)) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
     fun `addMember returns 403 when caller is not a workspace member`() {
+        given(workspaces.existsById(1L)).willReturn(true)
         given(members.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
 
-        val res = controller.addMember(buildJwt(1L), 1L, AddMemberRequest(userId = 2L))
+        val res = respond { controller.addMember(buildJwt(1L), 1L, AddMemberRequest(userId = 2L)) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test
     fun `addMember returns 403 when caller is not OWNER or ADMIN`() {
+        given(workspaces.existsById(1L)).willReturn(true)
         given(members.findByWorkspaceIdAndUserId(1L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.MEMBER))
 
-        val res = controller.addMember(buildJwt(1L), 1L, AddMemberRequest(userId = 2L))
+        val res = respond { controller.addMember(buildJwt(1L), 1L, AddMemberRequest(userId = 2L)) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat((res.body as com.github.abri02.link.messaging.channel.ErrorResponse).message)
+            .isEqualTo("Only OWNER or ADMIN can add members")
     }
 
     @Test
@@ -118,6 +135,27 @@ class WorkspaceControllerTest {
     }
 
     // ── inviteMember ──────────────────────────────────────────────────
+
+    @Test
+    fun `inviteMember returns 403 when caller is GUEST role`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.GUEST))
+
+        val res = respond { controller.inviteMember(buildJwt(1L), 1L, InviteRequest("bob"), "Bearer tok") }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    // ── listMembers ───────────────────────────────────────────────────
+
+    @Test
+    fun `listMembers returns 403 when caller is not a workspace member`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
+
+        val res = respond { controller.listMembers(buildJwt(1L), 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
 
     @Test
     fun `inviteMember does not join the invitee to PRIVATE or DM channels`() {

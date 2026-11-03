@@ -1,5 +1,9 @@
 package com.github.abri02.link.messaging.channel
 
+import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.support.respond
+import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -9,10 +13,13 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.given
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.jwt.Jwt
+import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
 class ChannelMembershipControllerTest {
 
+    @Mock private lateinit var workspaces: WorkspaceRepository
+    @Mock private lateinit var workspaceMembers: WorkspaceMemberRepository
     @Mock private lateinit var channels: ChannelRepository
     @Mock private lateinit var channelMembers: ChannelMemberRepository
 
@@ -20,32 +27,32 @@ class ChannelMembershipControllerTest {
 
     @BeforeEach
     fun setup() {
-        controller = ChannelMembershipController(channels, channelMembers)
+        controller = ChannelMembershipController(WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers))
     }
 
     @Test
     fun `check returns 204 when caller is a channel member`() {
-        given(channels.existsById(5L)).willReturn(true)
+        given(channels.findById(5L)).willReturn(Optional.of(Channel(workspaceId = 1L, name = "general", createdBy = 1L)))
         given(channelMembers.existsByChannelIdAndUserId(5L, 1L)).willReturn(true)
 
-        val res = controller.check(buildJwt(1L), 5L)
+        val res = respond { controller.check(buildJwt(1L), 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
     }
 
     @Test
     fun `check returns 403 when caller is not a channel member`() {
-        given(channels.existsById(5L)).willReturn(true)
+        given(channels.findById(5L)).willReturn(Optional.of(Channel(workspaceId = 1L, name = "general", createdBy = 1L)))
         given(channelMembers.existsByChannelIdAndUserId(5L, 1L)).willReturn(false)
 
-        val res = controller.check(buildJwt(1L), 5L)
+        val res = respond { controller.check(buildJwt(1L), 5L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
     @Test
     fun `check returns 404 when channel does not exist`() {
-        given(channels.existsById(99L)).willReturn(false)
+        given(channels.findById(99L)).willReturn(Optional.empty())
 
-        val res = controller.check(buildJwt(1L), 99L)
+        val res = respond { controller.check(buildJwt(1L), 99L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
