@@ -1,8 +1,6 @@
 package com.github.abri02.link.messaging.message
 
-import com.github.abri02.link.messaging.channel.ChannelMemberRepository
-import com.github.abri02.link.messaging.channel.ChannelRepository
-import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
+import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -26,9 +24,7 @@ data class ReactionUpdateEvent(
 @RequestMapping("/messages/{messageId}/reactions/{emoji}")
 class ReactionController(
     private val messages: MessageRepository,
-    private val channels: ChannelRepository,
-    private val channelMembers: ChannelMemberRepository,
-    private val workspaceMembers: WorkspaceMemberRepository,
+    private val access: WorkspaceAccess,
     private val reactions: MessageReactionRepository,
     private val broker: SimpMessagingTemplate
 ) {
@@ -44,15 +40,11 @@ class ReactionController(
         val message = messages.findById(messageId).orElse(null)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
-        if (!channelMembers.existsByChannelIdAndUserId(message.channelId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
-
-        val channel = channels.findById(message.channelId).orElse(null)
-        if (channel != null) {
-            val role = workspaceMembers.findByWorkspaceIdAndUserId(channel.workspaceId, userId)?.role
-            if (role == WorkspaceRole.GUEST)
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Guests cannot react to messages"))
-        }
+        val channel = access.requireChannelMember(message.channelId, userId)
+        access.requireRole(
+            channel.workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER,
+            reason = "Guests cannot react to messages"
+        )
 
         if (!reactions.existsByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
             reactions.save(MessageReaction(messageId = messageId, userId = userId, emoji = emoji))
@@ -72,8 +64,7 @@ class ReactionController(
         val message = messages.findById(messageId).orElse(null)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
-        if (!channelMembers.existsByChannelIdAndUserId(message.channelId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this channel"))
+        access.requireChannelMember(message.channelId, userId)
 
         reactions.deleteByMessageIdAndUserIdAndEmoji(messageId, userId, emoji)
 

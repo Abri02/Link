@@ -1,5 +1,6 @@
 package com.github.abri02.link.messaging.workspace
 
+import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.channel.Channel
 import com.github.abri02.link.messaging.channel.ChannelKind
 import com.github.abri02.link.messaging.channel.ChannelMember
@@ -55,7 +56,8 @@ class WorkspaceController(
     private val members: WorkspaceMemberRepository,
     private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository,
-    private val authService: AuthServiceClient
+    private val authService: AuthServiceClient,
+    private val access: WorkspaceAccess
 ) {
 
     @PostMapping
@@ -110,16 +112,7 @@ class WorkspaceController(
         @RequestBody req: AddMemberRequest
     ): ResponseEntity<*> {
         val callerId = jwt.subject.toLong()
-        val callerMembership = members.findByWorkspaceIdAndUserId(id, callerId)
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse("Not a member of this workspace"))
-
-        if (callerMembership.role !in listOf(WorkspaceRole.OWNER, WorkspaceRole.ADMIN))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse("Only OWNER or ADMIN can add members"))
-
-        if (!workspaces.existsById(id))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
+        access.requireRole(id, callerId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, reason = "Only OWNER or ADMIN can add members")
 
         if (members.existsByWorkspaceIdAndUserId(id, req.userId))
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("User is already a member"))
@@ -147,16 +140,7 @@ class WorkspaceController(
         @RequestHeader(HttpHeaders.AUTHORIZATION) authorization: String
     ): ResponseEntity<*> {
         val callerId = jwt.subject.toLong()
-        val callerMembership = members.findByWorkspaceIdAndUserId(id, callerId)
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse("Not a member of this workspace"))
-
-        if (callerMembership.role !in listOf(WorkspaceRole.OWNER, WorkspaceRole.ADMIN))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse("Only OWNER or ADMIN can invite members"))
-
-        if (!workspaces.existsById(id))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
+        access.requireRole(id, callerId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, reason = "Only OWNER or ADMIN can invite members")
 
         val user = authService.lookup(req.identifier, authorization)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -184,10 +168,7 @@ class WorkspaceController(
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable id: Long
     ): ResponseEntity<*> {
-        val callerId = jwt.subject.toLong()
-        if (!members.existsByWorkspaceIdAndUserId(id, callerId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse("Not a member of this workspace"))
+        access.requireMember(id, jwt.subject.toLong())
 
         val result = members.findMembersWithUsernameByWorkspaceId(id)
         return ResponseEntity.ok(result.map { MemberDetailResponse(it.getUserId(), it.getUsername(), it.getRole()) })

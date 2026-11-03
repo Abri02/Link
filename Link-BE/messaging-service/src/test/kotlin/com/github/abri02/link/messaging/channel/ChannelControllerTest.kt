@@ -5,6 +5,8 @@ import com.github.abri02.link.messaging.workspace.WorkspaceMember
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
+import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.support.respond
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -30,7 +32,7 @@ class ChannelControllerTest {
 
     @BeforeEach
     fun setup() {
-        controller = ChannelController(workspaces, workspaceMembers, channels, channelMembers)
+        controller = ChannelController(WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers), channels, channelMembers)
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ class ChannelControllerTest {
     fun `create returns 404 when workspace does not exist`() {
         given(workspaces.existsById(99L)).willReturn(false)
 
-        val res = controller.create(buildJwt(1L), 99L, CreateChannelRequest("alerts"))
+        val res = respond { controller.create(buildJwt(1L), 99L, CreateChannelRequest("alerts")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
@@ -48,7 +50,7 @@ class ChannelControllerTest {
         given(workspaces.existsById(1L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
 
-        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
+        val res = respond { controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
@@ -58,7 +60,7 @@ class ChannelControllerTest {
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.MEMBER))
 
-        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
+        val res = respond { controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
@@ -68,7 +70,7 @@ class ChannelControllerTest {
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.GUEST))
 
-        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts"))
+        val res = respond { controller.create(buildJwt(1L), 1L, CreateChannelRequest("alerts")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
@@ -78,7 +80,7 @@ class ChannelControllerTest {
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.ADMIN))
 
-        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("  "))
+        val res = respond { controller.create(buildJwt(1L), 1L, CreateChannelRequest("  ")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
     }
 
@@ -104,7 +106,7 @@ class ChannelControllerTest {
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.ADMIN))
         given(channels.existsByWorkspaceIdAndName(1L, "general")).willReturn(true)
 
-        val res = controller.create(buildJwt(1L), 1L, CreateChannelRequest("general"))
+        val res = respond { controller.create(buildJwt(1L), 1L, CreateChannelRequest("general")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.CONFLICT)
     }
 
@@ -113,9 +115,9 @@ class ChannelControllerTest {
     @Test
     fun `list returns 403 when caller is not a workspace member`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 1L)).willReturn(false)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
 
-        val res = controller.list(buildJwt(1L), 1L)
+        val res = respond { controller.list(buildJwt(1L), 1L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
@@ -123,17 +125,18 @@ class ChannelControllerTest {
     fun `list returns 404 when workspace does not exist`() {
         given(workspaces.existsById(1L)).willReturn(false)
 
-        val res = controller.list(buildJwt(1L), 1L)
+        val res = respond { controller.list(buildJwt(1L), 1L) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
 
     @Test
     fun `list returns only the channels visible to the caller`() {
         given(workspaces.existsById(1L)).willReturn(true)
-        given(workspaceMembers.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 2L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.MEMBER))
         given(channels.findVisibleChannels(1L, 2L)).willReturn(listOf(buildChannel(10L, 1L, "general")))
 
-        val res = controller.list(buildJwt(2L), 1L)
+        val res = respond { controller.list(buildJwt(2L), 1L) }
 
         assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
         @Suppress("UNCHECKED_CAST")

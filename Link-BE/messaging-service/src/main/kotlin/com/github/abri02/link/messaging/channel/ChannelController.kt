@@ -1,7 +1,6 @@
 package com.github.abri02.link.messaging.channel
 
-import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
-import com.github.abri02.link.messaging.workspace.WorkspaceRepository
+import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -32,8 +31,7 @@ data class ErrorResponse(val message: String)
 @RestController
 @RequestMapping("/workspaces/{workspaceId}/channels")
 class ChannelController(
-    private val workspaces: WorkspaceRepository,
-    private val workspaceMembers: WorkspaceMemberRepository,
+    private val access: WorkspaceAccess,
     private val channels: ChannelRepository,
     private val channelMembers: ChannelMemberRepository
 ) {
@@ -47,14 +45,10 @@ class ChannelController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        if (!workspaces.existsById(workspaceId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
-
-        val callerMember = workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, userId)
-            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
-
-        if (callerMember.role !in listOf(WorkspaceRole.OWNER, WorkspaceRole.ADMIN))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Only OWNER or ADMIN can create channels"))
+        access.requireRole(
+            workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN,
+            reason = "Only OWNER or ADMIN can create channels"
+        )
 
         if (req.name.isBlank() || req.name.length > 80)
             return ResponseEntity.badRequest().body(ErrorResponse("Channel name must be 1–80 characters"))
@@ -79,11 +73,7 @@ class ChannelController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        if (!workspaces.existsById(workspaceId))
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Workspace not found"))
-
-        if (!workspaceMembers.existsByWorkspaceIdAndUserId(workspaceId, userId))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not a member of this workspace"))
+        access.requireMember(workspaceId, userId)
 
         return ResponseEntity.ok(channels.findVisibleChannels(workspaceId, userId).map { it.toResponse() })
     }
