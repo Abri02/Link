@@ -172,7 +172,93 @@ class WorkspaceControllerTest {
         verify(channels, never()).findByWorkspaceId(any())
     }
 
+    // ── changeRole ────────────────────────────────────────────────────
+
+    @Test
+    fun `changeRole lets the owner promote a member to admin`() {
+        stubCaller(WorkspaceRole.OWNER)
+        val target = WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.MEMBER)
+        given(members.findByWorkspaceIdAndUserId(1L, 2L)).willReturn(target)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 2L, ChangeRoleRequest(WorkspaceRole.ADMIN)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+        assertThat((res.body as WorkspaceMemberResponse).role).isEqualTo("ADMIN")
+        assertThat(target.role).isEqualTo(WorkspaceRole.ADMIN)
+    }
+
+    @Test
+    fun `changeRole returns 403 when caller is ADMIN`() {
+        stubCaller(WorkspaceRole.ADMIN)
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 2L, ChangeRoleRequest(WorkspaceRole.ADMIN)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `changeRole returns 403 when caller is not a workspace member`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 2L, ChangeRoleRequest(WorkspaceRole.ADMIN)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+    }
+
+    @Test
+    fun `changeRole returns 404 when workspace does not exist`() {
+        given(workspaces.existsById(99L)).willReturn(false)
+
+        val res = respond { controller.changeRole(buildJwt(1L), 99L, 2L, ChangeRoleRequest(WorkspaceRole.ADMIN)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `changeRole returns 404 when target is not a member`() {
+        stubCaller(WorkspaceRole.OWNER)
+        given(members.findByWorkspaceIdAndUserId(1L, 2L)).willReturn(null)
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 2L, ChangeRoleRequest(WorkspaceRole.ADMIN)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `changeRole returns 409 when demoting the last owner`() {
+        val owner = stubCaller(WorkspaceRole.OWNER)
+        given(members.countByWorkspaceIdAndRole(1L, WorkspaceRole.OWNER)).willReturn(1L)
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 1L, ChangeRoleRequest(WorkspaceRole.ADMIN)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CONFLICT)
+        assertThat(owner.role).isEqualTo(WorkspaceRole.OWNER)
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `changeRole lets an owner step down when another owner exists`() {
+        val owner = stubCaller(WorkspaceRole.OWNER)
+        given(members.countByWorkspaceIdAndRole(1L, WorkspaceRole.OWNER)).willReturn(2L)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 1L, ChangeRoleRequest(WorkspaceRole.MEMBER)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+        assertThat(owner.role).isEqualTo(WorkspaceRole.MEMBER)
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
+
+    private fun stubCaller(role: WorkspaceRole): WorkspaceMember {
+        val caller = WorkspaceMember(workspaceId = 1L, userId = 1L, role = role)
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(caller)
+        return caller
+    }
 
     private fun stubOwnerAddingNewUser(newUserId: Long) {
         given(members.findByWorkspaceIdAndUserId(1L, 1L))
