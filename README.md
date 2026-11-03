@@ -179,6 +179,36 @@ Link/
 - `message_reaction` — message_id, user_id, emoji
 - *(later)* `attachment` — id, message_id, file_id, mime, size
 
+### 3.6 Role matrix (RBAC)
+
+Workspace roles live in `workspace_member.role`, not in the JWT. Every action also requires
+workspace membership. Channel-scoped actions (read, post, react, attachments, WS subscribe)
+also require `channel_member` membership.
+
+✅ allowed · ❌ forbidden (403)
+
+| Action | OWNER | ADMIN | MEMBER | GUEST | Status |
+| --- | :---: | :---: | :---: | :---: | --- |
+| Read channels they belong to | ✅ | ✅ | ✅ | ✅ | enforced |
+| Post messages (incl. thread replies, attachments) | ✅ | ✅ | ✅ | ✅ | guests blocked today, opened in B6 |
+| React to messages | ✅ | ✅ | ✅ | ✅ | guests blocked today, opened in B6 |
+| Edit / delete own messages | ✅ | ✅ | ✅ | ✅ | enforced (author only) |
+| Delete others' messages | ✅ | ✅ | ❌ | ❌ | B5 (today: author only) |
+| Create channel | ✅ | ✅ | ❌ | ❌ | enforced |
+| Invite / add member | ✅ | ✅ | ❌ | ❌ | enforced |
+| Choose invitee role (MEMBER / GUEST) | ✅ | ✅ | ❌ | ❌ | B6 |
+| Change member role | ✅ | ❌ | ❌ | ❌ | B3. The last OWNER can't be demoted (409) |
+| Remove member | ✅ | ✅¹ | ❌ | ❌ | B4 |
+| Leave workspace | ✅² | ✅ | ✅ | ✅ | B4 |
+| Open a DM | ✅ | ✅ | ✅ | ❌ | enforced |
+| Manage billing (premium subscription) | ✅ | ❌ | ❌ | ❌ | F3 |
+
+¹ An ADMIN can't remove an OWNER.
+² The last OWNER can't leave.
+
+Guests can only see and use the channels they were added to. Hiding a button in the UI is
+cosmetic. The backend enforces every row above.
+
 ---
 
 ## 4. Roadmap
@@ -352,7 +382,7 @@ unless noted.
    - Codify the role matrix (OWNER/ADMIN/MEMBER/GUEST × every endpoint) in a
      table in this README.
    - Spring Security `@PreAuthorize` on every controller method.
-   - Guests can read but not post in channels they're not in.
+   - Guests can post and react in the channels they belong to (see §3.6).
 6. **Polish.**
    - Edit + delete messages.
    - Message search within a channel (Postgres full-text is enough for now;
@@ -535,7 +565,7 @@ npx playwright test
 - [ ] **Threads** — `GET /messages/{id}/thread` endpoint; thread sidebar `Drawer` in FE.
 - [ ] **Reactions** — `V2` Flyway migration adds `message_reaction` table; `POST/DELETE /messages/{id}/reactions/{emoji}`; aggregate counts in `MessageResponse`; emoji-picker `Popover` in FE.
 - [ ] **File sharing (`file-service`)** — MinIO in `docker-compose`; presigned upload; `attachment` table; inline image preview.
-- [ ] **RBAC enforcement** — `@PreAuthorize` on every controller; role matrix documented; guests read-only.
+- [ ] **RBAC enforcement** — `@PreAuthorize` on every controller; role matrix documented (§3.6); guests can post and react.
 - [ ] **Message edit + delete** — `PATCH /messages/{id}`, `DELETE /messages/{id}`; WS broadcast `message.edited` / `message.deleted`; FE hover-menu.
 - [ ] **Message search** — `GET /channels/{id}/messages?q=` Postgres full-text; search bar in FE.
 - [ ] **Tests** — JUnit 5 unit tests (domain logic); Spring Boot integration tests (happy-path per service); E2E Playwright specs for all features.
