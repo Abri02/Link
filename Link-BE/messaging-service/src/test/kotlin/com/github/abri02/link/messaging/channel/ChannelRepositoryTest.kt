@@ -33,24 +33,40 @@ class ChannelRepositoryTest : PostgresIntegrationTest() {
     }
 
     @Test
-    fun `findVisibleChannels hides private channels from non-members and excludes DMs`() {
+    fun `findJoinedChannels returns only the public and private channels the user is in`() {
         val ws = workspaces.save(Workspace(name = "A2", slug = "a2-${System.nanoTime()}", ownerId = 1L))
         val other = workspaces.save(Workspace(name = "Other", slug = "a2-other-${System.nanoTime()}", ownerId = 1L))
         val general = channels.save(Channel(workspaceId = ws.id!!, name = "general", createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "random", createdBy = 1L))
         val secret = channels.save(Channel(workspaceId = ws.id, name = "secret", kind = ChannelKind.PRIVATE, createdBy = 1L))
         val dm = channels.save(Channel(workspaceId = ws.id, name = "dm-1-2", kind = ChannelKind.DM, createdBy = 1L))
         val otherSecret = channels.save(Channel(workspaceId = other.id!!, name = "secret", kind = ChannelKind.PRIVATE, createdBy = 1L))
         channelMembers.save(ChannelMember(channelId = general.id!!, userId = 1L))
+        channelMembers.save(ChannelMember(channelId = general.id, userId = 2L))
         channelMembers.save(ChannelMember(channelId = secret.id!!, userId = 1L))
         channelMembers.save(ChannelMember(channelId = dm.id!!, userId = 1L))
         channelMembers.save(ChannelMember(channelId = dm.id, userId = 2L))
         channelMembers.save(ChannelMember(channelId = otherSecret.id!!, userId = 2L))
 
-        val forMember = channels.findVisibleChannels(ws.id, 1L)
-        val forNonMember = channels.findVisibleChannels(ws.id, 2L)
+        assertThat(channels.findJoinedChannels(ws.id, 1L).map { it.name }).containsExactly("general", "secret")
+        assertThat(channels.findJoinedChannels(ws.id, 2L).map { it.name }).containsExactly("general")
+        assertThat(channels.findJoinedChannels(ws.id, 3L)).isEmpty()
+    }
 
-        assertThat(forMember.map { it.name }).containsExactly("general", "secret")
-        assertThat(forNonMember.map { it.name }).containsExactly("general")
+    @Test
+    fun `findBrowsableChannels returns public channels the user is not in, sorted by name`() {
+        val ws = workspaces.save(Workspace(name = "D2", slug = "d2-${System.nanoTime()}", ownerId = 1L))
+        val other = workspaces.save(Workspace(name = "Other", slug = "d2-other-${System.nanoTime()}", ownerId = 1L))
+        val general = channels.save(Channel(workspaceId = ws.id!!, name = "general", createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "zeta", createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "alpha", createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "secret", kind = ChannelKind.PRIVATE, createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "dm-1-2", kind = ChannelKind.DM, createdBy = 1L))
+        channels.save(Channel(workspaceId = other.id!!, name = "elsewhere", createdBy = 1L))
+        channelMembers.save(ChannelMember(channelId = general.id!!, userId = 2L))
+
+        assertThat(channels.findBrowsableChannels(ws.id, 2L).map { it.name }).containsExactly("alpha", "zeta")
+        assertThat(channels.findBrowsableChannels(ws.id, 3L).map { it.name }).containsExactly("alpha", "general", "zeta")
     }
 
     @Test

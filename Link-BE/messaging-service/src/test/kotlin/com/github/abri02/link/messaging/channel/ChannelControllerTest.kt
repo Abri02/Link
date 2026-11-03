@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.jwt.Jwt
@@ -130,11 +131,11 @@ class ChannelControllerTest {
     }
 
     @Test
-    fun `list returns only the channels visible to the caller`() {
+    fun `list returns only the channels the caller has joined`() {
         given(workspaces.existsById(1L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 2L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.MEMBER))
-        given(channels.findVisibleChannels(1L, 2L)).willReturn(listOf(buildChannel(10L, 1L, "general")))
+        given(channels.findJoinedChannels(1L, 2L)).willReturn(listOf(buildChannel(10L, 1L, "general")))
 
         val res = respond { controller.list(buildJwt(2L), 1L) }
 
@@ -142,7 +143,7 @@ class ChannelControllerTest {
         @Suppress("UNCHECKED_CAST")
         val body = res.body as List<ChannelResponse>
         assertThat(body.map { it.name }).containsExactly("general")
-        verify(channels).findVisibleChannels(1L, 2L)
+        verify(channels).findJoinedChannels(1L, 2L)
     }
 
     // ── helpers ───────────────────────────────────────────────────────
