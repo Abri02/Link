@@ -146,6 +146,56 @@ class WorkspaceControllerTest {
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
     }
 
+    @Test
+    fun `inviteMember lets an admin invite someone as GUEST`() {
+        given(members.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.ADMIN))
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(false)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+        given(authService.lookup("bob", "Bearer tok")).willReturn(UserLookupResult(2L, "bob", "Bob"))
+
+        val res = controller.inviteMember(buildJwt(1L), 1L, InviteRequest("bob", WorkspaceRole.GUEST), "Bearer tok")
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        assertThat((res.body as WorkspaceMemberResponse).role).isEqualTo("GUEST")
+    }
+
+    @Test
+    fun `inviteMember returns 400 when inviting as ADMIN or OWNER`() {
+        for (role in listOf(WorkspaceRole.ADMIN, WorkspaceRole.OWNER)) {
+            given(workspaces.existsById(1L)).willReturn(true)
+            given(members.findByWorkspaceIdAndUserId(1L, 1L))
+                .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.OWNER))
+
+            val res = controller.inviteMember(buildJwt(1L), 1L, InviteRequest("bob", role), "Bearer tok")
+
+            assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        }
+        verify(authService, never()).lookup(any(), any())
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `inviteMember returns 403 when a MEMBER tries to invite a guest`() {
+        stubCaller(WorkspaceRole.MEMBER)
+
+        val res = respond { controller.inviteMember(buildJwt(1L), 1L, InviteRequest("bob", WorkspaceRole.GUEST), "Bearer tok") }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `addMember returns 400 when adding as OWNER`() {
+        stubCaller(WorkspaceRole.OWNER)
+
+        val res = controller.addMember(buildJwt(1L), 1L, AddMemberRequest(userId = 2L, role = WorkspaceRole.OWNER))
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
     // ── listMembers ───────────────────────────────────────────────────
 
     @Test

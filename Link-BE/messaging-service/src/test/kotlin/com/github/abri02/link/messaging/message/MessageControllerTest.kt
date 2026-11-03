@@ -69,24 +69,22 @@ class MessageControllerTest {
     }
 
     @Test
-    fun `send returns 403 for GUEST role`() {
+    fun `send lets a GUEST post in a channel they belong to`() {
+        // Guests are checked by channel membership only; their workspace role doesn't matter here.
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
-        given(workspaces.existsById(10L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.GUEST))
+        given(messages.save(any<Message>())).willReturn(buildMessage(id = 7L, channelId = 1L, authorId = 1L, body = "Hello"))
+        given(channelMembers.findByChannelId(1L)).willReturn(emptyList())
 
         val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Hello")) }
-        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        verifyNoInteractions(workspaceMembers)
     }
 
     @Test
     fun `send returns 400 for blank body`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
-        given(workspaces.existsById(10L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.MEMBER))
 
         val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("   ")) }
         assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
@@ -96,9 +94,6 @@ class MessageControllerTest {
     fun `send returns 201 with saved message`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
-        given(workspaces.existsById(10L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.MEMBER))
         given(messages.save(any<Message>())).willReturn(buildMessage(id = 7L, channelId = 1L, authorId = 1L, body = "Hello"))
         given(channelMembers.findByChannelId(1L)).willReturn(emptyList())
 
@@ -111,7 +106,7 @@ class MessageControllerTest {
 
     @Test
     fun `send stores attachment id name and mime`() {
-        givenMemberOfChannel(1L, 10L, 1L)
+        givenChannelMember(1L, 10L, 1L)
         given(messages.save(any<Message>())).willAnswer { inv ->
             (inv.arguments[0] as Message).also {
                 Message::class.java.getDeclaredField("id").apply { isAccessible = true }.set(it, 9L)
@@ -135,9 +130,6 @@ class MessageControllerTest {
     fun `send with parentMessageId stores reply and does not notify channel members`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
-        given(workspaces.existsById(10L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(10L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 10L, userId = 1L, role = WorkspaceRole.MEMBER))
         given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 1L, authorId = 2L, body = "Parent")))
         given(messages.save(any<Message>())).willReturn(
             buildMessage(id = 8L, channelId = 1L, authorId = 1L, body = "Reply", parentMessageId = 5L)
@@ -153,7 +145,7 @@ class MessageControllerTest {
 
     @Test
     fun `send returns 400 when parent message does not exist`() {
-        givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L)
+        givenChannelMember(channelId = 1L, workspaceId = 10L, userId = 1L)
         given(messages.findById(5L)).willReturn(Optional.empty())
 
         val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L)) }
@@ -163,7 +155,7 @@ class MessageControllerTest {
 
     @Test
     fun `send returns 400 when parent message is in another channel`() {
-        givenMemberOfChannel(channelId = 1L, workspaceId = 10L, userId = 1L)
+        givenChannelMember(channelId = 1L, workspaceId = 10L, userId = 1L)
         given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 2L, authorId = 2L, body = "Elsewhere")))
 
         val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L)) }
@@ -391,11 +383,16 @@ class MessageControllerTest {
 
     // ── helpers ───────────────────────────────────────────────────────
 
+    /** Stubs only the channel lookup and channel membership (enough for send). */
+    private fun givenChannelMember(channelId: Long, workspaceId: Long, userId: Long) {
+        given(channels.findById(channelId)).willReturn(Optional.of(buildChannel(channelId, workspaceId)))
+        given(channelMembers.existsByChannelIdAndUserId(channelId, userId)).willReturn(true)
+    }
+
     private fun givenMemberOfChannel(
         channelId: Long, workspaceId: Long, userId: Long, role: WorkspaceRole = WorkspaceRole.MEMBER
     ) {
-        given(channels.findById(channelId)).willReturn(Optional.of(buildChannel(channelId, workspaceId)))
-        given(channelMembers.existsByChannelIdAndUserId(channelId, userId)).willReturn(true)
+        givenChannelMember(channelId, workspaceId, userId)
         given(workspaces.existsById(workspaceId)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, userId))
             .willReturn(WorkspaceMember(workspaceId = workspaceId, userId = userId, role = role))

@@ -31,6 +31,9 @@ data class InviteRequest(val identifier: String, val role: WorkspaceRole = Works
 
 data class ChangeRoleRequest(val role: WorkspaceRole)
 
+/** Roles a new member can be added or invited with. ADMIN and OWNER are granted later via [WorkspaceController.changeRole]. */
+private val INVITABLE_ROLES = setOf(WorkspaceRole.MEMBER, WorkspaceRole.GUEST)
+
 data class WorkspaceResponse(
     val id: Long,
     val name: String,
@@ -118,6 +121,9 @@ class WorkspaceController(
         val callerId = jwt.subject.toLong()
         access.requireRole(id, callerId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, reason = "Only OWNER or ADMIN can add members")
 
+        if (req.role !in INVITABLE_ROLES)
+            return ResponseEntity.badRequest().body(ErrorResponse("New members can only be MEMBER or GUEST"))
+
         if (members.existsByWorkspaceIdAndUserId(id, req.userId))
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("User is already a member"))
 
@@ -145,6 +151,9 @@ class WorkspaceController(
     ): ResponseEntity<*> {
         val callerId = jwt.subject.toLong()
         access.requireRole(id, callerId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, reason = "Only OWNER or ADMIN can invite members")
+
+        if (req.role !in INVITABLE_ROLES)
+            return ResponseEntity.badRequest().body(ErrorResponse("New members can only be MEMBER or GUEST"))
 
         val user = authService.lookup(req.identifier, authorization)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
