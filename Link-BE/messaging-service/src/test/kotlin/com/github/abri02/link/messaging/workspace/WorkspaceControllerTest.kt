@@ -251,7 +251,161 @@ class WorkspaceControllerTest {
         assertThat(owner.role).isEqualTo(WorkspaceRole.MEMBER)
     }
 
+    // ── removeMember ──────────────────────────────────────────────────
+
+    @Test
+    fun `removeMember lets an admin remove a member and drops their channel memberships`() {
+        stubCaller(WorkspaceRole.ADMIN)
+        val target = stubTarget(WorkspaceRole.MEMBER)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        verify(channelMembers).deleteByWorkspaceIdAndUserId(1L, 2L)
+        verify(members).delete(target)
+    }
+
+    @Test
+    fun `removeMember lets an owner remove an admin`() {
+        stubCaller(WorkspaceRole.OWNER)
+        val target = stubTarget(WorkspaceRole.ADMIN)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        verify(members).delete(target)
+    }
+
+    @Test
+    fun `removeMember lets an owner remove another owner`() {
+        stubCaller(WorkspaceRole.OWNER)
+        val target = stubTarget(WorkspaceRole.OWNER)
+        given(members.countByWorkspaceIdAndRole(1L, WorkspaceRole.OWNER)).willReturn(2L)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        verify(members).delete(target)
+    }
+
+    @Test
+    fun `removeMember returns 403 when an admin tries to remove an owner`() {
+        stubCaller(WorkspaceRole.ADMIN)
+        stubTarget(WorkspaceRole.OWNER)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNothingRemoved()
+    }
+
+    @Test
+    fun `removeMember returns 403 when caller is MEMBER`() {
+        stubCaller(WorkspaceRole.MEMBER)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNothingRemoved()
+    }
+
+    @Test
+    fun `removeMember returns 403 when caller is GUEST`() {
+        stubCaller(WorkspaceRole.GUEST)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNothingRemoved()
+    }
+
+    @Test
+    fun `removeMember returns 403 when caller is not a workspace member`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L)).willReturn(null)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        verifyNothingRemoved()
+    }
+
+    @Test
+    fun `removeMember returns 404 when workspace does not exist`() {
+        given(workspaces.existsById(99L)).willReturn(false)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 99L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `removeMember returns 404 when target is not a member`() {
+        stubCaller(WorkspaceRole.OWNER)
+        given(members.findByWorkspaceIdAndUserId(1L, 2L)).willReturn(null)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 2L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+        verifyNothingRemoved()
+    }
+
+    @Test
+    fun `removeMember on yourself lets a member leave`() {
+        val me = stubCaller(WorkspaceRole.MEMBER)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 1L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        verify(channelMembers).deleteByWorkspaceIdAndUserId(1L, 1L)
+        verify(members).delete(me)
+    }
+
+    @Test
+    fun `removeMember on yourself lets a guest leave`() {
+        val me = stubCaller(WorkspaceRole.GUEST)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 1L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        verify(members).delete(me)
+    }
+
+    @Test
+    fun `removeMember on yourself lets an owner leave when another owner exists`() {
+        val me = stubCaller(WorkspaceRole.OWNER)
+        given(members.countByWorkspaceIdAndRole(1L, WorkspaceRole.OWNER)).willReturn(2L)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 1L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        verify(members).delete(me)
+    }
+
+    @Test
+    fun `removeMember returns 409 when the last owner tries to leave`() {
+        stubCaller(WorkspaceRole.OWNER)
+        given(members.countByWorkspaceIdAndRole(1L, WorkspaceRole.OWNER)).willReturn(1L)
+
+        val res = respond { controller.removeMember(buildJwt(1L), 1L, 1L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CONFLICT)
+        assertThat((res.body as ErrorResponse).message).contains("last OWNER")
+        verifyNothingRemoved()
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
+
+    private fun stubTarget(role: WorkspaceRole): WorkspaceMember {
+        val target = WorkspaceMember(workspaceId = 1L, userId = 2L, role = role)
+        given(members.findByWorkspaceIdAndUserId(1L, 2L)).willReturn(target)
+        return target
+    }
+
+    private fun verifyNothingRemoved() {
+        verify(channelMembers, never()).deleteByWorkspaceIdAndUserId(any(), any())
+        verify(members, never()).delete(any<WorkspaceMember>())
+    }
 
     private fun stubCaller(role: WorkspaceRole): WorkspaceMember {
         val caller = WorkspaceMember(workspaceId = 1L, userId = 1L, role = role)

@@ -6,6 +6,7 @@ import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.transaction.annotation.Transactional
 
 class ChannelRepositoryTest : PostgresIntegrationTest() {
 
@@ -48,5 +49,29 @@ class ChannelRepositoryTest : PostgresIntegrationTest() {
 
         assertThat(forMember.map { it.name }).containsExactly("general", "secret")
         assertThat(forNonMember.map { it.name }).containsExactly("general")
+    }
+
+    @Test
+    @Transactional
+    fun `deleteByWorkspaceIdAndUserId removes the user only from that workspace's channels`() {
+        val ws = workspaces.save(Workspace(name = "B4", slug = "b4-${System.nanoTime()}", ownerId = 1L))
+        val other = workspaces.save(Workspace(name = "Other", slug = "b4-other-${System.nanoTime()}", ownerId = 1L))
+        val general = channels.save(Channel(workspaceId = ws.id!!, name = "general", createdBy = 1L))
+        val secret = channels.save(Channel(workspaceId = ws.id, name = "secret", kind = ChannelKind.PRIVATE, createdBy = 1L))
+        val dm = channels.save(Channel(workspaceId = ws.id, name = "dm-1-2", kind = ChannelKind.DM, createdBy = 1L))
+        val otherGeneral = channels.save(Channel(workspaceId = other.id!!, name = "general", createdBy = 1L))
+        listOf(general, secret, dm, otherGeneral).forEach { channelMembers.save(ChannelMember(channelId = it.id!!, userId = 2L)) }
+        channelMembers.save(ChannelMember(channelId = general.id!!, userId = 1L))
+        channelMembers.save(ChannelMember(channelId = dm.id!!, userId = 1L))
+
+        val deleted = channelMembers.deleteByWorkspaceIdAndUserId(ws.id, 2L)
+
+        assertThat(deleted).isEqualTo(3)
+        assertThat(channelMembers.existsByChannelIdAndUserId(general.id, 2L)).isFalse()
+        assertThat(channelMembers.existsByChannelIdAndUserId(secret.id!!, 2L)).isFalse()
+        assertThat(channelMembers.existsByChannelIdAndUserId(dm.id, 2L)).isFalse()
+        assertThat(channelMembers.existsByChannelIdAndUserId(otherGeneral.id!!, 2L)).isTrue()
+        assertThat(channelMembers.existsByChannelIdAndUserId(general.id, 1L)).isTrue()
+        assertThat(channelMembers.existsByChannelIdAndUserId(dm.id, 1L)).isTrue()
     }
 }

@@ -18,3 +18,7 @@ export const inviteMember = (workspaceId: number, data: InviteMemberRequest): Pr
 
 export const changeMemberRole = (workspaceId: number, userId: number, data: ChangeRoleRequest): Promise<WorkspaceMember> =>
   apiClient(`/workspaces/${workspaceId}/members/${userId}`, { method: "PATCH", body: JSON.stringify(data) });
+
+/** Removes a member. Passing your own user id leaves the workspace. */
+export const removeMember = (workspaceId: number, userId: number): Promise<void> =>
+  apiClient(`/workspaces/${workspaceId}/members/${userId}`, { method: "DELETE" });

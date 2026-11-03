@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -200,6 +201,37 @@ class WorkspaceController(
         target.role = req.role
         val saved = members.save(target)
         return ResponseEntity.ok(WorkspaceMemberResponse(saved.workspaceId, saved.userId, saved.role.name))
+    }
+
+    /**
+     * Removes a member. OWNER or ADMIN can remove others (an ADMIN can't remove an OWNER).
+     * Removing yourself means leaving, which any role can do, except the last OWNER.
+     */
+    @DeleteMapping("/{id}/members/{userId}")
+    @Transactional
+    fun removeMember(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: Long,
+        @PathVariable userId: Long
+    ): ResponseEntity<*> {
+        val callerId = jwt.subject.toLong()
+        val target = if (userId == callerId) {
+            access.requireMember(id, callerId)
+        } else {
+            val caller = access.requireRole(id, callerId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, reason = "Only OWNER or ADMIN can remove members")
+            val target = members.findByWorkspaceIdAndUserId(id, userId)
+                ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Member not found"))
+            if (caller.role == WorkspaceRole.ADMIN && target.role == WorkspaceRole.OWNER)
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("An ADMIN can't remove an OWNER"))
+            target
+        }
+
+        if (target.role == WorkspaceRole.OWNER && members.countByWorkspaceIdAndRole(id, WorkspaceRole.OWNER) <= 1)
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("The last OWNER can't leave the workspace"))
+
+        channelMembers.deleteByWorkspaceIdAndUserId(id, target.userId)
+        members.delete(target)
+        return ResponseEntity.noContent().build<Void>()
     }
 
     private fun Workspace.toResponse() = WorkspaceResponse(id!!, name, slug, ownerId, createdAt)
