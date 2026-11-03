@@ -216,8 +216,15 @@ class MessageController(
         if (message.channelId != channelId)
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
-        if (message.authorId != userId)
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not the author"))
+        // Authors can delete their own messages. Anyone else must be a member of the channel
+        // and a workspace OWNER/ADMIN (moderation).
+        if (message.authorId != userId) {
+            val channel = access.requireChannelMember(channelId, userId)
+            access.requireRole(
+                channel.workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN,
+                reason = "Only the author or a workspace owner/admin can delete this message"
+            )
+        }
 
         message.deletedAt = Instant.now()
         messages.save(message)
