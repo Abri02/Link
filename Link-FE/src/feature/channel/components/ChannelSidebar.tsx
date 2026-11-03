@@ -10,6 +10,7 @@ import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { useMyWorkspaceRole } from "@/feature/workspace/hooks/useMyWorkspaceRole";
+import { useChangeRole } from "@/feature/workspace/hooks/useChangeRole";
 import { ChannelList } from "./ChannelList";
 import { DmItem } from "./DmItem";
 import { MemberList } from "./MemberList";
@@ -36,6 +37,7 @@ export function ChannelSidebar() {
   const { open: inviteOpen, onOpen: onInviteOpen, onClose: onInviteClose } = useDisclosure();
   const role = useMyWorkspaceRole(selectedWorkspaceId);
   const canCreate = role === "OWNER" || role === "ADMIN";
+  const changeRole = useChangeRole(selectedWorkspaceId ?? 0);
 
   const workspace = workspaces?.find((w) => w.id === selectedWorkspaceId);
 
@@ -115,6 +117,10 @@ export function ChannelSidebar() {
             onStartDm={(userId) =>
               openDm(userId, { onSuccess: (dm) => selectChannel(dm.id) })
             }
+            onChangeRole={
+              role === "OWNER" ? (userId, newRole) => changeRole.mutate({ userId, role: newRole }) : undefined
+            }
+            roleError={changeRole.error?.message ?? null}
           />
         </Box>
       )}

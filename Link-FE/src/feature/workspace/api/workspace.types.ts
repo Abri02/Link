@@ -10,6 +10,12 @@ export interface CreateWorkspaceRequest {
   name: string;
 }
 
+export type WorkspaceRole = "OWNER" | "ADMIN" | "MEMBER" | "GUEST";
+
+export interface ChangeRoleRequest {
+  role: WorkspaceRole;
+}
+
 export interface AddMemberRequest {
   userId: number;
   role?: "OWNER" | "ADMIN" | "MEMBER" | "GUEST";

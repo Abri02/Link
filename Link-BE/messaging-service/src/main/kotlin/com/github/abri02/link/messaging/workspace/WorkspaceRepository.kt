@@ -20,6 +20,7 @@ interface WorkspaceRepository : JpaRepository<Workspace, Long> {
 interface WorkspaceMemberRepository : JpaRepository<WorkspaceMember, Long> {
     fun findByWorkspaceIdAndUserId(workspaceId: Long, userId: Long): WorkspaceMember?
     fun existsByWorkspaceIdAndUserId(workspaceId: Long, userId: Long): Boolean
+    fun countByWorkspaceIdAndRole(workspaceId: Long, role: WorkspaceRole): Long
 
     @Query("SELECT wm.workspaceId FROM WorkspaceMember wm WHERE wm.userId = :userId")
     fun findWorkspaceIdsByUserId(userId: Long): List<Long>

@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -26,6 +27,8 @@ data class CreateWorkspaceRequest(val name: String)
 data class AddMemberRequest(val userId: Long, val role: WorkspaceRole = WorkspaceRole.MEMBER)
 
 data class InviteRequest(val identifier: String, val role: WorkspaceRole = WorkspaceRole.MEMBER)
+
+data class ChangeRoleRequest(val role: WorkspaceRole)
 
 data class WorkspaceResponse(
     val id: Long,
@@ -172,6 +175,31 @@ class WorkspaceController(
 
         val result = members.findMembersWithUsernameByWorkspaceId(id)
         return ResponseEntity.ok(result.map { MemberDetailResponse(it.getUserId(), it.getUsername(), it.getRole()) })
+    }
+
+    @PatchMapping("/{id}/members/{userId}")
+    @Transactional
+    fun changeRole(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: Long,
+        @PathVariable userId: Long,
+        @RequestBody req: ChangeRoleRequest
+    ): ResponseEntity<*> {
+        access.requireRole(id, jwt.subject.toLong(), WorkspaceRole.OWNER, reason = "Only OWNER can change member roles")
+
+        val target = members.findByWorkspaceIdAndUserId(id, userId)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Member not found"))
+
+        if (target.role == WorkspaceRole.OWNER && req.role != WorkspaceRole.OWNER &&
+            members.countByWorkspaceIdAndRole(id, WorkspaceRole.OWNER) <= 1
+        ) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse("The last OWNER can't be demoted"))
+        }
+
+        target.role = req.role
+        val saved = members.save(target)
+        return ResponseEntity.ok(WorkspaceMemberResponse(saved.workspaceId, saved.userId, saved.role.name))
     }
 
     private fun Workspace.toResponse() = WorkspaceResponse(id!!, name, slug, ownerId, createdAt)
