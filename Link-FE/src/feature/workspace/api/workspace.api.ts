@@ -1,5 +1,5 @@
 import { apiClient } from "@/util/apiClient";
-import type { Workspace, CreateWorkspaceRequest, AddMemberRequest, WorkspaceMember, MemberDetail, InviteMemberRequest } from "./workspace.types";
+import type { Workspace, CreateWorkspaceRequest, AddMemberRequest, WorkspaceMember, MemberDetail, InviteMemberRequest, ChangeRoleRequest } from "./workspace.types";
 
 export const listWorkspaces = (): Promise<Workspace[]> =>
   apiClient("/workspaces");
@@ -15,3 +15,6 @@ export const listMembers = (workspaceId: number): Promise<MemberDetail[]> =>
 
 export const inviteMember = (workspaceId: number, data: InviteMemberRequest): Promise<WorkspaceMember> =>
   apiClient(`/workspaces/${workspaceId}/members/invite`, { method: "POST", body: JSON.stringify(data) });
+
+export const changeMemberRole = (workspaceId: number, userId: number, data: ChangeRoleRequest): Promise<WorkspaceMember> =>
+  apiClient(`/workspaces/${workspaceId}/members/${userId}`, { method: "PATCH", body: JSON.stringify(data) });
