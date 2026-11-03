@@ -4,6 +4,7 @@ import { API_URL, WS_URL } from "@/util/constants";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { useNotificationStore } from "../stores/notificationStore";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
+import { markChannelRead } from "@/feature/channel/api/channel.api";
 
 export function useNotificationSocket(userId: number | null) {
   useEffect(() => {
@@ -37,6 +38,9 @@ export function useNotificationSocket(userId: number | null) {
           const selectedChannelId = useWorkspaceStore.getState().selectedChannelId;
           if (event.channelId !== selectedChannelId) {
             increment(event.channelId);
+          } else {
+            // The message is on screen, so move the server-side read marker past it.
+            markChannelRead(event.channelId).catch(() => {});
           }
         });
       },

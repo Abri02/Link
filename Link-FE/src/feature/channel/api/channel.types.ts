@@ -5,6 +5,8 @@ export interface Channel {
   kind: "PUBLIC" | "PRIVATE" | "DM" | "GROUP_DM";
   createdBy: number;
   createdAt: string;
+  /** Unread messages for the current user. Only the list endpoint fills it in. Elsewhere it's 0. */
+  unreadCount: number;
 }
 
 /** The channel every workspace starts with. The backend doesn't let anyone leave it. */
@@ -38,6 +40,8 @@ export interface Conversation {
   kind: "DM" | "GROUP_DM";
   title: string | null;
   members: ConversationMember[];
+  /** Unread messages for the current user. Only the list endpoint fills it in. Elsewhere it's 0. */
+  unreadCount: number;
 }
 
 export interface OpenConversationRequest {
