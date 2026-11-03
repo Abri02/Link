@@ -8,9 +8,11 @@ interface Props {
   channelId: number;
   channelName: string;
   parentMessageId?: number;
+  /** Overrides the default "Message #channel" placeholder, e.g. for DMs. */
+  placeholder?: string;
 }
 
-export function MessageComposer({ channelId, channelName, parentMessageId }: Props) {
+export function MessageComposer({ channelId, channelName, parentMessageId, placeholder }: Props) {
   const [body, setBody] = useState("");
   const [attachment, setAttachment] = useState<AttachmentResponse | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -119,7 +121,7 @@ export function MessageComposer({ channelId, channelName, parentMessageId }: Pro
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={`Message #${channelName}`}
+          placeholder={placeholder ?? `Message #${channelName}`}
           bg="#22223A"
           border="1px solid #2E2E50"
           color="#F4F4F6"

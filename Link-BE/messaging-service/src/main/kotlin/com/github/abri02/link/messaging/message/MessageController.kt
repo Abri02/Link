@@ -43,7 +43,8 @@ data class MessageResponse(
     val replyCount: Int = 0,
     val attachmentId: Long? = null,
     val attachmentName: String? = null,
-    val attachmentMime: String? = null
+    val attachmentMime: String? = null,
+    val type: String = MessageType.USER.name
 )
 
 data class NotificationEvent(
@@ -82,6 +83,8 @@ class MessageController(
             val parent = messages.findById(req.parentMessageId).orElse(null)
             if (parent == null || parent.channelId != channelId)
                 return ResponseEntity.badRequest().body(ErrorResponse("Parent message not found in this channel"))
+            if (parent.type == MessageType.SYSTEM)
+                return ResponseEntity.badRequest().body(ErrorResponse("Can't reply to a system message"))
         }
 
         val message = messages.save(
@@ -185,6 +188,9 @@ class MessageController(
         if (message.channelId != channelId)
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
+        if (message.type == MessageType.SYSTEM)
+            return ResponseEntity.badRequest().body(ErrorResponse("System messages can't be edited"))
+
         if (message.authorId != userId)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse("Not the author"))
 
@@ -212,6 +218,9 @@ class MessageController(
         if (message.channelId != channelId)
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
+        if (message.type == MessageType.SYSTEM)
+            return ResponseEntity.badRequest().body(ErrorResponse("System messages can't be deleted"))
+
         // Authors can delete their own messages. Anyone else must be a member of the channel
         // and a workspace OWNER/ADMIN (moderation).
         if (message.authorId != userId) {
@@ -227,8 +236,8 @@ class MessageController(
         broker.convertAndSend("/topic/channel.$channelId.deletes", DeletedEvent(messageId, channelId))
         return ResponseEntity.noContent().build<Unit>()
     }
-
-    private fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap(), replyCount: Int = 0) =
-        MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns, replyCount,
-            attachmentId, attachmentName, attachmentMime)
 }
+
+fun Message.toResponse(rxns: Map<String, List<Long>> = emptyMap(), replyCount: Int = 0) =
+    MessageResponse(id!!, channelId, authorId, body, createdAt, editedAt, parentMessageId, rxns, replyCount,
+        attachmentId, attachmentName, attachmentMime, type.name)

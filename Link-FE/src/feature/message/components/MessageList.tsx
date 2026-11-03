@@ -40,7 +40,7 @@ export function MessageList({ messages, isLoading, members }: Props) {
           <MessageRow
             key={msg.id}
             message={msg}
-            prevAuthorId={messages[i - 1]?.authorId}
+            prevAuthorId={messages[i - 1]?.type === "SYSTEM" ? undefined : messages[i - 1]?.authorId}
             authorUsername={members.find((m) => m.userId === msg.authorId)?.username ?? `User ${msg.authorId}`}
           />
         ))}

@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { VStack, HStack, Box, Text, Input, IconButton } from "@chakra-ui/react";
-import { Hash, Search, X } from "lucide-react";
+import { Hash, Search, X, Users, AtSign } from "lucide-react";
 import { useMessages } from "@/feature/message/hooks/useMessages";
 import { useMessageSearch } from "@/feature/message/hooks/useMessageSearch";
 import { useChannelSocket } from "@/feature/message/hooks/useChannelSocket";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
+import { useConversations } from "@/feature/channel/hooks/useConversations";
+import { ConversationMenu } from "@/feature/channel/components/ConversationMenu";
+import { conversationName } from "@/feature/channel/api/channel.types";
+import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { MessageList } from "./MessageList";
 import { MessageComposer } from "./MessageComposer";
 
@@ -16,6 +20,8 @@ export function MessageArea() {
   const { data: channels } = useChannels(selectedWorkspaceId);
   const { data: messages, isLoading } = useMessages(selectedChannelId);
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
+  const { data: conversations } = useConversations(selectedWorkspaceId);
+  const currentUserId = useAuthStore((s) => s.user?.id);
   useChannelSocket(selectedChannelId);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,6 +29,9 @@ export function MessageArea() {
   const { data: searchResults, isFetching: searchLoading } = useMessageSearch(selectedChannelId, searchQuery);
 
   const channel = channels?.find((c) => c.id === selectedChannelId);
+  const conversation = conversations?.find((c) => c.id === selectedChannelId);
+  const title = conversation ? conversationName(conversation, currentUserId) : channel?.name ?? "";
+  const HeaderIcon = !conversation ? Hash : conversation.kind === "GROUP_DM" ? Users : AtSign;
 
   if (!selectedWorkspaceId) {
     return (
@@ -47,10 +56,11 @@ export function MessageArea() {
   return (
     <VStack flex="1" minW="0" bg="#1C1C2E" gap="0" h="100vh">
       <HStack px="16px" py="12px" borderBottom="1px solid #2A2A45" w="full" gap="8px" flexShrink={0}>
-        <Hash size={16} color="rgba(244,244,246,0.5)" />
-        <Text color="#F4F4F6" fontWeight="600" fontSize="15px" flex="1">
-          {channel?.name ?? ""}
+        <HeaderIcon size={16} color="rgba(244,244,246,0.5)" />
+        <Text color="#F4F4F6" fontWeight="600" fontSize="15px" flex="1" truncate>
+          {title}
         </Text>
+        {conversation && <ConversationMenu conversation={conversation} />}
         <HStack gap="4px" w="200px">
           <Search size={14} color="rgba(244,244,246,0.35)" />
           <Input
@@ -99,7 +109,11 @@ export function MessageArea() {
       )}
 
       <Box w="full" borderTop="1px solid #2A2A45" flexShrink={0}>
-        <MessageComposer channelId={selectedChannelId} channelName={channel?.name ?? ""} />
+        <MessageComposer
+          channelId={selectedChannelId}
+          channelName={channel?.name ?? ""}
+          placeholder={conversation ? `Message ${title}` : undefined}
+        />
       </Box>
     </VStack>
   );

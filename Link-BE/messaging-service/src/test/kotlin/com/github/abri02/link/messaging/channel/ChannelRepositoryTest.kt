@@ -4,8 +4,10 @@ import com.github.abri02.link.messaging.support.PostgresIntegrationTest
 import com.github.abri02.link.messaging.workspace.Workspace
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 
 class ChannelRepositoryTest : PostgresIntegrationTest() {
@@ -73,5 +75,66 @@ class ChannelRepositoryTest : PostgresIntegrationTest() {
         assertThat(channelMembers.existsByChannelIdAndUserId(otherGeneral.id!!, 2L)).isTrue()
         assertThat(channelMembers.existsByChannelIdAndUserId(general.id, 1L)).isTrue()
         assertThat(channelMembers.existsByChannelIdAndUserId(dm.id, 1L)).isTrue()
+    }
+
+    @Test
+    fun `findConversationsForUser returns the user's DMs and group DMs in that workspace only`() {
+        val ws = workspaces.save(Workspace(name = "D1", slug = "d1-${System.nanoTime()}", ownerId = 1L))
+        val other = workspaces.save(Workspace(name = "Other", slug = "d1-other-${System.nanoTime()}", ownerId = 1L))
+        val general = channels.save(Channel(workspaceId = ws.id!!, name = "general", createdBy = 1L))
+        val dm = channels.save(Channel(workspaceId = ws.id, name = "dm-1-2", kind = ChannelKind.DM, createdBy = 1L, memberKey = "1,2"))
+        val group = channels.save(Channel(workspaceId = ws.id, name = "group-dm-1-2-3", kind = ChannelKind.GROUP_DM, createdBy = 1L, memberKey = "1,2,3"))
+        val notMine = channels.save(Channel(workspaceId = ws.id, name = "dm-2-3", kind = ChannelKind.DM, createdBy = 2L, memberKey = "2,3"))
+        val otherWsDm = channels.save(Channel(workspaceId = other.id!!, name = "dm-1-2", kind = ChannelKind.DM, createdBy = 1L, memberKey = "1,2"))
+        channelMembers.save(ChannelMember(channelId = general.id!!, userId = 1L))
+        listOf(1L, 2L).forEach { channelMembers.save(ChannelMember(channelId = dm.id!!, userId = it)) }
+        listOf(1L, 2L, 3L).forEach { channelMembers.save(ChannelMember(channelId = group.id!!, userId = it)) }
+        listOf(2L, 3L).forEach { channelMembers.save(ChannelMember(channelId = notMine.id!!, userId = it)) }
+        listOf(1L, 2L).forEach { channelMembers.save(ChannelMember(channelId = otherWsDm.id!!, userId = it)) }
+
+        val conversations = channels.findConversationsForUser(ws.id, 1L)
+
+        assertThat(conversations.map { it.id }).containsExactly(dm.id, group.id)
+        assertThat(channelMembers.findByChannelIdIn(conversations.map { it.id!! }).map { it.channelId to it.userId })
+            .containsExactlyInAnyOrder(dm.id!! to 1L, dm.id!! to 2L, group.id!! to 1L, group.id!! to 2L, group.id!! to 3L)
+    }
+
+    @Test
+    fun `findByWorkspaceIdAndMemberKey finds the conversation for that member set in that workspace`() {
+        val ws = workspaces.save(Workspace(name = "D1k", slug = "d1k-${System.nanoTime()}", ownerId = 1L))
+        val other = workspaces.save(Workspace(name = "Other", slug = "d1k-other-${System.nanoTime()}", ownerId = 1L))
+        val group = channels.save(Channel(workspaceId = ws.id!!, name = "g", kind = ChannelKind.GROUP_DM, createdBy = 1L, memberKey = "1,2,3"))
+        channels.save(Channel(workspaceId = other.id!!, name = "g", kind = ChannelKind.GROUP_DM, createdBy = 1L, memberKey = "1,2,3"))
+
+        assertThat(channels.findByWorkspaceIdAndMemberKey(ws.id, "1,2,3")?.id).isEqualTo(group.id)
+        assertThat(channels.findByWorkspaceIdAndMemberKey(ws.id, "1,2")).isNull()
+    }
+
+    @Test
+    fun `member key is unique per workspace, but channels without one don't clash`() {
+        val ws = workspaces.save(Workspace(name = "D1u", slug = "d1u-${System.nanoTime()}", ownerId = 1L))
+        channels.save(Channel(workspaceId = ws.id!!, name = "a", createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "b", createdBy = 1L))
+        channels.save(Channel(workspaceId = ws.id, name = "dm-1-2", kind = ChannelKind.DM, createdBy = 1L, memberKey = "1,2"))
+
+        assertThatThrownBy {
+            channels.saveAndFlush(Channel(workspaceId = ws.id, name = "g", kind = ChannelKind.GROUP_DM, createdBy = 1L, memberKey = "1,2"))
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+    }
+
+    @Test
+    @Transactional
+    fun `deleteByChannelIdAndUserId removes only that user from that conversation`() {
+        val ws = workspaces.save(Workspace(name = "D1l", slug = "d1l-${System.nanoTime()}", ownerId = 1L))
+        val group = channels.save(Channel(workspaceId = ws.id!!, name = "g", kind = ChannelKind.GROUP_DM, createdBy = 1L, memberKey = "1,2,3"))
+        val dm = channels.save(Channel(workspaceId = ws.id, name = "dm-1-3", kind = ChannelKind.DM, createdBy = 1L, memberKey = "1,3"))
+        listOf(1L, 2L, 3L).forEach { channelMembers.save(ChannelMember(channelId = group.id!!, userId = it)) }
+        listOf(1L, 3L).forEach { channelMembers.save(ChannelMember(channelId = dm.id!!, userId = it)) }
+
+        val deleted = channelMembers.deleteByChannelIdAndUserId(group.id!!, 3L)
+
+        assertThat(deleted).isEqualTo(1)
+        assertThat(channelMembers.findByChannelId(group.id).map { it.userId }).containsExactlyInAnyOrder(1L, 2L)
+        assertThat(channelMembers.existsByChannelIdAndUserId(dm.id!!, 3L)).isTrue()
     }
 }

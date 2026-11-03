@@ -164,6 +164,18 @@ class MessageControllerTest {
         verifyNoInteractions(broker)
     }
 
+    @Test
+    fun `send returns 400 when replying to a system message`() {
+        givenChannelMember(channelId = 1L, workspaceId = 10L, userId = 1L)
+        given(messages.findById(5L)).willReturn(Optional.of(
+            buildMessage(id = 5L, channelId = 1L, authorId = 2L, body = "bob left the conversation", type = MessageType.SYSTEM)
+        ))
+
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("Reply", parentMessageId = 5L)) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(messages, never()).save(any<Message>())
+    }
+
     // ── thread ────────────────────────────────────────────────────────
 
     @Test
@@ -292,6 +304,26 @@ class MessageControllerTest {
         assertThat((res.body as MessageResponse).body).isEqualTo("Updated")
     }
 
+    @Test
+    fun `edit returns 400 for a system message, even for its actor`() {
+        val msg = buildMessage(id = 1L, channelId = 1L, authorId = 1L, body = "alice added bob", type = MessageType.SYSTEM)
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+
+        val res = controller.edit(buildJwt(1L), 1L, 1L, EditMessageRequest("Hacked"))
+        assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(messages, never()).save(any<Message>())
+    }
+
+    @Test
+    fun `delete returns 400 for a system message`() {
+        val msg = buildMessage(id = 1L, channelId = 1L, authorId = 1L, body = "alice added bob", type = MessageType.SYSTEM)
+        given(messages.findById(1L)).willReturn(Optional.of(msg))
+
+        val res = respond { controller.delete(buildJwt(1L), 1L, 1L) }
+        assertThat(res.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+        verify(messages, never()).save(any<Message>())
+    }
+
     // ── delete ────────────────────────────────────────────────────────
 
     @Test
@@ -406,9 +438,10 @@ class MessageControllerTest {
         .build()
 
     private fun buildMessage(
-        id: Long, channelId: Long, authorId: Long, body: String, parentMessageId: Long? = null
+        id: Long, channelId: Long, authorId: Long, body: String, parentMessageId: Long? = null,
+        type: MessageType = MessageType.USER
     ): Message {
-        val msg = Message(channelId = channelId, authorId = authorId, body = body, parentMessageId = parentMessageId)
+        val msg = Message(channelId = channelId, authorId = authorId, body = body, parentMessageId = parentMessageId, type = type)
         Message::class.java.getDeclaredField("id").apply { isAccessible = true }.set(msg, id)
         return msg
     }
