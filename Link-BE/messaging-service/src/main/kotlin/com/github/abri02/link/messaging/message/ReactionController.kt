@@ -1,7 +1,6 @@
 package com.github.abri02.link.messaging.message
 
 import com.github.abri02.link.messaging.access.WorkspaceAccess
-import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.messaging.simp.SimpMessagingTemplate
@@ -40,11 +39,7 @@ class ReactionController(
         val message = messages.findById(messageId).orElse(null)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
 
-        val channel = access.requireChannelMember(message.channelId, userId)
-        access.requireRole(
-            channel.workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER,
-            reason = "Guests cannot react to messages"
-        )
+        access.requireChannelMember(message.channelId, userId)
 
         if (!reactions.existsByMessageIdAndUserIdAndEmoji(messageId, userId, emoji))
             reactions.save(MessageReaction(messageId = messageId, userId = userId, emoji = emoji))

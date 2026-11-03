@@ -73,11 +73,7 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        val channel = access.requireChannelMember(channelId, userId)
-        access.requireRole(
-            channel.workspaceId, userId, WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.MEMBER,
-            reason = "Guests cannot send messages"
-        )
+        access.requireChannelMember(channelId, userId)
 
         if (req.body.isBlank())
             return ResponseEntity.badRequest().body(ErrorResponse("Message body cannot be empty"))

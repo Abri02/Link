@@ -18,7 +18,7 @@ export interface ChangeRoleRequest {
 
 export interface AddMemberRequest {
   userId: number;
-  role?: "OWNER" | "ADMIN" | "MEMBER" | "GUEST";
+  role?: InvitableRole;
 }
 
 export interface WorkspaceMember {
@@ -33,7 +33,10 @@ export interface MemberDetail {
   role: string;
 }
 
+/** New members join as MEMBER or GUEST. ADMIN/OWNER are granted later with a role change. */
+export type InvitableRole = "MEMBER" | "GUEST";
+
 export interface InviteMemberRequest {
   identifier: string;
-  role?: "ADMIN" | "MEMBER" | "GUEST";
+  role?: InvitableRole;
 }

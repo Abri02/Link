@@ -17,6 +17,8 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.springframework.http.HttpStatus
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.security.oauth2.jwt.Jwt
@@ -63,16 +65,18 @@ class ReactionControllerTest {
     }
 
     @Test
-    fun `add returns 403 for GUEST role`() {
+    fun `add lets a GUEST react in a channel they belong to`() {
+        // Guests are checked by channel membership only; their workspace role doesn't matter here.
         given(messages.findById(1L)).willReturn(Optional.of(buildMessage(1L, channelId = 10L)))
         given(channels.findById(10L)).willReturn(Optional.of(buildChannel(10L, workspaceId = 5L)))
         given(channelMembers.existsByChannelIdAndUserId(10L, 1L)).willReturn(true)
-        given(workspaces.existsById(5L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(5L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 5L, userId = 1L, role = WorkspaceRole.GUEST))
+        given(reactions.existsByMessageIdAndUserIdAndEmoji(1L, 1L, "👍")).willReturn(false)
+        given(reactions.findByMessageId(1L)).willReturn(listOf(MessageReaction(1L, 1L, "👍")))
 
         val res = respond { controller.add(buildJwt(1L), 1L, "👍") }
-        assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+        verify(reactions).save(any<MessageReaction>())
+        verifyNoInteractions(workspaceMembers)
     }
 
     @Test
@@ -80,9 +84,6 @@ class ReactionControllerTest {
         given(messages.findById(1L)).willReturn(Optional.of(buildMessage(1L, channelId = 10L)))
         given(channels.findById(10L)).willReturn(Optional.of(buildChannel(10L, workspaceId = 5L)))
         given(channelMembers.existsByChannelIdAndUserId(10L, 1L)).willReturn(true)
-        given(workspaces.existsById(5L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(5L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 5L, userId = 1L, role = WorkspaceRole.MEMBER))
         given(reactions.existsByMessageIdAndUserIdAndEmoji(1L, 1L, "👍")).willReturn(false)
         given(reactions.save(any<MessageReaction>())).willReturn(MessageReaction(1L, 1L, "👍"))
         given(reactions.findByMessageId(1L)).willReturn(listOf(MessageReaction(1L, 1L, "👍")))
@@ -96,9 +97,6 @@ class ReactionControllerTest {
         given(messages.findById(1L)).willReturn(Optional.of(buildMessage(1L, channelId = 10L)))
         given(channels.findById(10L)).willReturn(Optional.of(buildChannel(10L, workspaceId = 5L)))
         given(channelMembers.existsByChannelIdAndUserId(10L, 1L)).willReturn(true)
-        given(workspaces.existsById(5L)).willReturn(true)
-        given(workspaceMembers.findByWorkspaceIdAndUserId(5L, 1L))
-            .willReturn(WorkspaceMember(workspaceId = 5L, userId = 1L, role = WorkspaceRole.MEMBER))
         given(reactions.existsByMessageIdAndUserIdAndEmoji(1L, 1L, "👍")).willReturn(true)
         given(reactions.findByMessageId(1L)).willReturn(listOf(MessageReaction(1L, 1L, "👍")))
 
