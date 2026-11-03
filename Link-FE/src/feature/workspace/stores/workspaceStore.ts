@@ -5,7 +5,7 @@ interface WorkspaceState {
   selectedWorkspaceId: number | null;
   selectedChannelId: number | null;
   threadMessageId: number | null;
-  selectWorkspace: (id: number) => void;
+  selectWorkspace: (id: number | null) => void;
   selectChannel: (id: number) => void;
   openThread: (messageId: number) => void;
   closeThread: () => void;

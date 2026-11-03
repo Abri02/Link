@@ -1,4 +1,5 @@
-import { VStack, Box, HStack, Text, NativeSelect } from "@chakra-ui/react";
+import { VStack, Box, HStack, Text, NativeSelect, IconButton } from "@chakra-ui/react";
+import { X } from "lucide-react";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import type { MemberDetail, WorkspaceRole } from "@/feature/workspace/api/workspace.types";
 
@@ -10,9 +11,12 @@ interface Props {
   /** Only passed for owners: shows a role dropdown next to every member. */
   onChangeRole?: (userId: number, role: WorkspaceRole) => void;
   roleError?: string | null;
+  /** Only passed for owners and admins: shows a remove button for members `canRemove` allows. */
+  onRemove?: (member: MemberDetail) => void;
+  canRemove?: (member: MemberDetail) => boolean;
 }
 
-export function MemberList({ members, onStartDm, onChangeRole, roleError }: Props) {
+export function MemberList({ members, onStartDm, onChangeRole, roleError, onRemove, canRemove }: Props) {
   const onlineIds = usePresenceStore((s) => s.onlineIds);
 
   if (members.length === 0) return null;
@@ -92,6 +96,21 @@ export function MemberList({ members, onStartDm, onChangeRole, roleError }: Prop
                   ))}
                 </NativeSelect.Field>
               </NativeSelect.Root>
+            )}
+            {onRemove && canRemove?.(m) && (
+              <IconButton
+                onClick={() => onRemove(m)}
+                size="2xs"
+                minW="20px"
+                h="20px"
+                bg="transparent"
+                color="rgba(244,244,246,0.3)"
+                _hover={{ color: "#FF6B6B", bg: "transparent" }}
+                aria-label={`Remove ${m.username}`}
+                flexShrink={0}
+              >
+                <X size={12} />
+              </IconButton>
             )}
           </HStack>
         );

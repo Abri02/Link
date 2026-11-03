@@ -1,6 +1,6 @@
 import { VStack, Box, HStack, Text, IconButton, Dialog, Portal } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
-import { UserPlus } from "lucide-react";
+import { UserPlus, LogOut } from "lucide-react";
 import { Tip } from "@/components/Tip";
 import { InviteMemberDialog } from "@/feature/workspace/components/InviteMemberDialog";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
@@ -11,6 +11,9 @@ import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { useMyWorkspaceRole } from "@/feature/workspace/hooks/useMyWorkspaceRole";
 import { useChangeRole } from "@/feature/workspace/hooks/useChangeRole";
+import { useRemoveMember } from "@/feature/workspace/hooks/useRemoveMember";
+import { useLeaveWorkspace } from "@/feature/workspace/hooks/useLeaveWorkspace";
+import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { ChannelList } from "./ChannelList";
 import { DmItem } from "./DmItem";
 import { MemberList } from "./MemberList";
@@ -38,6 +41,9 @@ export function ChannelSidebar() {
   const role = useMyWorkspaceRole(selectedWorkspaceId);
   const canCreate = role === "OWNER" || role === "ADMIN";
   const changeRole = useChangeRole(selectedWorkspaceId ?? 0);
+  const removeMember = useRemoveMember(selectedWorkspaceId ?? 0);
+  const leaveWorkspace = useLeaveWorkspace(selectedWorkspaceId ?? 0);
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   const workspace = workspaces?.find((w) => w.id === selectedWorkspaceId);
 
@@ -60,21 +66,42 @@ export function ChannelSidebar() {
         <Text color="#F4F4F6" fontWeight="600" fontSize="15px" truncate>
           {workspace?.name ?? ""}
         </Text>
-        {canCreate && (
-          <Tip label="Invite member" placement="right">
+        <HStack gap="2px" flexShrink={0}>
+          {canCreate && (
+            <Tip label="Invite member" placement="right">
+              <IconButton
+                onClick={onInviteOpen}
+                size="xs"
+                bg="transparent"
+                color="rgba(244,244,246,0.4)"
+                _hover={{ color: "#6C63FF", bg: "transparent" }}
+                aria-label="Invite member"
+              >
+                <UserPlus size={14} />
+              </IconButton>
+            </Tip>
+          )}
+          <Tip label="Leave workspace" placement="right">
             <IconButton
-              onClick={onInviteOpen}
+              onClick={() => {
+                if (window.confirm(`Leave ${workspace?.name ?? "this workspace"}?`)) leaveWorkspace.mutate();
+              }}
               size="xs"
               bg="transparent"
               color="rgba(244,244,246,0.4)"
-              _hover={{ color: "#6C63FF", bg: "transparent" }}
-              aria-label="Invite member"
+              _hover={{ color: "#FF6B6B", bg: "transparent" }}
+              aria-label="Leave workspace"
             >
-              <UserPlus size={14} />
+              <LogOut size={14} />
             </IconButton>
           </Tip>
-        )}
+        </HStack>
       </HStack>
+      {leaveWorkspace.error && (
+        <Text color="#FF6B6B" fontSize="12px" px="16px" pt="6px" role="alert">
+          {leaveWorkspace.error.message}
+        </Text>
+      )}
 
       <ChannelList
         channels={channels}
@@ -120,7 +147,15 @@ export function ChannelSidebar() {
             onChangeRole={
               role === "OWNER" ? (userId, newRole) => changeRole.mutate({ userId, role: newRole }) : undefined
             }
-            roleError={changeRole.error?.message ?? null}
+            roleError={(changeRole.error ?? removeMember.error)?.message ?? null}
+            onRemove={
+              canCreate
+                ? (m) => {
+                    if (window.confirm(`Remove ${m.username} from the workspace?`)) removeMember.mutate(m.userId);
+                  }
+                : undefined
+            }
+            canRemove={(m) => m.userId !== currentUserId && (role === "OWNER" || m.role !== "OWNER")}
           />
         </Box>
       )}

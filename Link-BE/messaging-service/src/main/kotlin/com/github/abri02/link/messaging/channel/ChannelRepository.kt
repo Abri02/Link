@@ -1,6 +1,7 @@
 package com.github.abri02.link.messaging.channel
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -57,4 +58,13 @@ interface ChannelRepository : JpaRepository<Channel, Long> {
 interface ChannelMemberRepository : JpaRepository<ChannelMember, Long> {
     fun existsByChannelIdAndUserId(channelId: Long, userId: Long): Boolean
     fun findByChannelId(channelId: Long): List<ChannelMember>
+
+    /** Removes the user from every channel (public, private and DM) of the workspace. */
+    @Modifying
+    @Query("""
+        DELETE FROM ChannelMember cm
+        WHERE cm.userId = :userId
+          AND cm.channelId IN (SELECT c.id FROM Channel c WHERE c.workspaceId = :workspaceId)
+    """)
+    fun deleteByWorkspaceIdAndUserId(@Param("workspaceId") workspaceId: Long, @Param("userId") userId: Long): Int
 }
