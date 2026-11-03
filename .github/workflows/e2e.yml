@@ -57,13 +57,14 @@ jobs:
           key: playwright-chromium-${{ hashFiles('Link-FE/package-lock.json') }}
 
       # ── MinIO ─────────────────────────────────────────────────────────
+      # minio/minio is no longer pullable from Docker Hub; pgsty/minio is a drop-in build.
       - name: Start MinIO
         run: |
           docker run -d --name minio \
             -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:latest server /data
+            pgsty/minio:RELEASE.2026-08-04T00-00-00Z server /data
           until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done
 
       # ── Database schema ───────────────────────────────────────────────

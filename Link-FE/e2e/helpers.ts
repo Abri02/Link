@@ -1,5 +1,6 @@
-import { type Page } from "@playwright/test";
+import { type Browser, type BrowserContext, type Page } from "@playwright/test";
 
+export const API = "http://localhost:8080/api";
 const PASSWORD = "TestPass1!";
 
 export function uniqueUser(tag: string) {
@@ -55,4 +56,75 @@ export async function selectChannel(page: Page, name: string) {
 export async function sendMessage(page: Page, channelName: string, body: string) {
   await page.getByPlaceholder(`Message #${channelName}`).fill(body);
   await page.getByPlaceholder(`Message #${channelName}`).press("Enter");
+}
+
+/**
+ * Resolves once the page sends a STOMP SUBSCRIBE to a destination starting with `destination`,
+ * on a socket opened after this call.
+ * Use it before a realtime assertion so the other user doesn't act before the subscription exists.
+ */
+export function waitForSubscription(page: Page, destination: string): Promise<void> {
+  return new Promise((resolve) => {
+    page.on("websocket", (ws) => {
+      ws.on("framesent", (frame) => {
+        const payload = typeof frame.payload === "string" ? frame.payload : frame.payload.toString();
+        if (payload.startsWith("SUBSCRIBE") && payload.includes(`destination:${destination}`)) resolve();
+      });
+    });
+  });
+}
+
+export interface TwoUsers {
+  a: Page;
+  b: Page;
+  ctxA: BrowserContext;
+  ctxB: BrowserContext;
+  userA: { email: string; username: string };
+  userB: { email: string; username: string };
+  wsName: string;
+  wsId: number;
+  generalId: number;
+  close: () => Promise<void>;
+}
+
+/**
+ * Signs up user A (workspace owner) and user B in separate browser contexts, invites B as a MEMBER
+ * and opens #general on both pages.
+ */
+export async function setupTwoUsersInWorkspace(browser: Browser, tag: string): Promise<TwoUsers> {
+  const ctxA = await browser.newContext();
+  const ctxB = await browser.newContext();
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+
+  const userA = uniqueUser(`${tag}a`);
+  const userB = uniqueUser(`${tag}b`);
+  await signUp(a, userA.email, userA.username);
+  await signUp(b, userB.email, userB.username);
+
+  const wsName = `${tag}-${Date.now()}`;
+  await createWorkspace(a, wsName);
+  const workspaces = await (await a.request.get(`${API}/workspaces`)).json();
+  const wsId: number = workspaces.find((w: { name: string }) => w.name === wsName).id;
+  const invited = await a.request.post(`${API}/workspaces/${wsId}/members/invite`, {
+    data: { identifier: userB.username },
+  });
+  if (!invited.ok()) throw new Error(`Inviting ${userB.username} failed with ${invited.status()}`);
+  const channels = await (await a.request.get(`${API}/workspaces/${wsId}/channels`)).json();
+  const generalId: number = channels.find((c: { name: string }) => c.name === "general").id;
+
+  // B's workspace list was loaded before the invite.
+  await b.reload();
+  for (const page of [a, b]) {
+    await selectWorkspace(page, wsName);
+    await selectChannel(page, "general");
+  }
+
+  return {
+    a, b, ctxA, ctxB, userA, userB, wsName, wsId, generalId,
+    close: async () => {
+      await ctxA.close();
+      await ctxB.close();
+    },
+  };
 }
