@@ -4,11 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { WS_URL } from "@/util/constants";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { channelKeys } from "../api/channel.api.keys";
-import type { Conversation, ConversationEvent } from "../api/channel.types";
+import type { Channel, ChannelEvent, Conversation, ConversationEvent } from "../api/channel.types";
 
 /**
- * Keeps the conversation list live: someone opened a DM with us, added us to a group DM,
- * renamed it, or someone (including us, in another tab) left it.
+ * Keeps the sidebar live over one per-user connection:
+ * - conversations: someone opened a DM with us, added us to a group DM, renamed it, or someone
+ *   (including us, in another tab) left it.
+ * - channels: we joined or left a channel (maybe in another tab), or were added to or removed
+ *   from a private channel.
  */
 export function useConversationSocket(userId: number | null) {
   const queryClient = useQueryClient();
@@ -31,6 +34,18 @@ export function useConversationSocket(userId: number | null) {
               : [...old, conversation];
           });
           if (type === "REMOVED" && useWorkspaceStore.getState().selectedChannelId === conversation.id) {
+            useWorkspaceStore.getState().clearChannel();
+          }
+        });
+        client.subscribe("/user/queue/channels", (frame) => {
+          const { type, channel }: ChannelEvent = JSON.parse(frame.body);
+          queryClient.setQueryData<Channel[]>(channelKeys.byWorkspace(channel.workspaceId), (old) => {
+            if (!old) return old;
+            if (type === "REMOVED") return old.filter((c) => c.id !== channel.id);
+            return old.some((c) => c.id === channel.id) ? old : [...old, channel].sort((a, b) => a.id - b.id);
+          });
+          queryClient.invalidateQueries({ queryKey: channelKeys.browse(channel.workspaceId) });
+          if (type === "REMOVED" && useWorkspaceStore.getState().selectedChannelId === channel.id) {
             useWorkspaceStore.getState().clearChannel();
           }
         });
