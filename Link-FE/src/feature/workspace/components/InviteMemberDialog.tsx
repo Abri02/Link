@@ -1,6 +1,7 @@
 import { Box, Input, Button, Field, NativeSelect } from "@chakra-ui/react";
 import { useState } from "react";
 import { useInviteMember } from "../hooks/useInviteMember";
+import type { InvitableRole } from "../api/workspace.types";
 
 interface Props {
   workspaceId: number;
@@ -9,7 +10,7 @@ interface Props {
 
 export function InviteMemberDialog({ workspaceId, onClose }: Props) {
   const [identifier, setIdentifier] = useState("");
-  const [role, setRole] = useState<"MEMBER" | "ADMIN" | "GUEST">("MEMBER");
+  const [role, setRole] = useState<InvitableRole>("MEMBER");
   const { mutate, isPending, error } = useInviteMember(workspaceId);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,8 +49,9 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
         </Field.Label>
         <NativeSelect.Root>
         <NativeSelect.Field
+          aria-label="Role"
           value={role}
-          onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN" | "GUEST")}
+          onChange={(e) => setRole(e.target.value as InvitableRole)}
           bg="#1C1C30"
           border="1px solid #2E2E50"
           color="#F4F4F6"
@@ -61,7 +63,6 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
           style={{ outline: "none" }}
         >
           <option value="MEMBER" style={{ background: "#1C1C30" }}>Member</option>
-          <option value="ADMIN" style={{ background: "#1C1C30" }}>Admin</option>
           <option value="GUEST" style={{ background: "#1C1C30" }}>Guest</option>
         </NativeSelect.Field>
         </NativeSelect.Root>

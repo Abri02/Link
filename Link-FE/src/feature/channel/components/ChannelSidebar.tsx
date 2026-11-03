@@ -141,8 +141,11 @@ export function ChannelSidebar() {
         <Box borderTop="1px solid #2A2A45" maxH="160px" overflow="auto" flexShrink={0}>
           <MemberList
             members={members}
-            onStartDm={(userId) =>
-              openDm(userId, { onSuccess: (dm) => selectChannel(dm.id) })
+            onStartDm={
+              // Guests can't open DMs (the backend returns 403), so their member names aren't clickable.
+              role === "GUEST"
+                ? undefined
+                : (userId) => openDm(userId, { onSuccess: (dm) => selectChannel(dm.id) })
             }
             onChangeRole={
               role === "OWNER" ? (userId, newRole) => changeRole.mutate({ userId, role: newRole }) : undefined

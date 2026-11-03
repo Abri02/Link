@@ -71,6 +71,7 @@ function ReactionArea({ message }: { message: Message }) {
             w="22px"
             minW="0"
             p="0"
+            aria-label="Add reaction"
           >
             <Smile size={13} />
           </Button>
