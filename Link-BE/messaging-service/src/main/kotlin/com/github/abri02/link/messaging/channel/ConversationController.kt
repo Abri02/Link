@@ -6,6 +6,7 @@ import com.github.abri02.link.messaging.message.Message
 import com.github.abri02.link.messaging.message.MessageRepository
 import com.github.abri02.link.messaging.message.MessageType
 import com.github.abri02.link.messaging.message.toResponse
+import com.github.abri02.link.messaging.message.mentionCounts
 import com.github.abri02.link.messaging.message.unreadCounts
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
@@ -43,7 +44,9 @@ data class ConversationResponse(
     val title: String?,
     val members: List<ConversationMemberResponse>,
     /** Only filled in by the conversation list. Everywhere else it's 0. */
-    val unreadCount: Long = 0
+    val unreadCount: Long = 0,
+    /** Unread messages that @mention the caller. Only filled in by the conversation list. */
+    val mentionCount: Long = 0
 )
 
 /** Sent on `/user/queue/conversations`. `UPSERT`: show or refresh it. `REMOVED`: the user left it. */
@@ -113,9 +116,12 @@ class ConversationController(
         val membersByChannel = channelMembers.findByChannelIdIn(conversations.map { it.id!! })
             .groupBy({ it.channelId }, { it.userId })
         val names = usernames(workspaceId)
-        val unread = messages.unreadCounts(callerId, conversations.map { it.id!! })
+        val ids = conversations.map { it.id!! }
+        val unread = messages.unreadCounts(callerId, ids)
+        val mentions = messages.mentionCounts(callerId, ids)
         return ResponseEntity.ok(conversations.map {
-            it.toResponse(membersByChannel[it.id].orEmpty(), names).copy(unreadCount = unread[it.id] ?: 0)
+            it.toResponse(membersByChannel[it.id].orEmpty(), names)
+                .copy(unreadCount = unread[it.id] ?: 0, mentionCount = mentions[it.id] ?: 0)
         })
     }
 

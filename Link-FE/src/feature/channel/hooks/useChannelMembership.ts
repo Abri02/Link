@@ -32,10 +32,11 @@ export function useLeaveChannel(workspaceId: number) {
   });
 }
 
-export const useChannelMembers = (channelId: number) =>
+export const useChannelMembers = (channelId: number, enabled = true) =>
   useQuery({
     queryKey: channelKeys.members(channelId),
     queryFn: () => listChannelMembers(channelId),
+    enabled,
   });
 
 export function useAddChannelMember(channelId: number) {

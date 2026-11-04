@@ -69,9 +69,32 @@ interface MessageRepository : JpaRepository<Message, Long> {
         @Param("userId") userId: Long,
         @Param("channelIds") channelIds: Collection<Long>
     ): List<UnreadCountProjection>
+
+    /**
+     * Unread mentions of the user per channel: messages (thread replies included) that mention
+     * the user, aren't deleted, and are newer than the user's read marker.
+     */
+    @Query("""
+        SELECT m.channelId as channelId, COUNT(m) as count
+        FROM MessageMention mm, Message m, ChannelMember cm
+        WHERE mm.userId = :userId AND m.id = mm.messageId
+          AND cm.userId = :userId AND cm.channelId = m.channelId AND cm.channelId IN :channelIds
+          AND (cm.lastReadMessageId IS NULL OR m.id > cm.lastReadMessageId)
+          AND m.deletedAt IS NULL
+        GROUP BY m.channelId
+    """)
+    fun countMentionsByChannel(
+        @Param("userId") userId: Long,
+        @Param("channelIds") channelIds: Collection<Long>
+    ): List<UnreadCountProjection>
 }
 
 /** Unread count per channel id. Channels that aren't in the map have nothing unread. */
 fun MessageRepository.unreadCounts(userId: Long, channelIds: Collection<Long>): Map<Long, Long> =
     if (channelIds.isEmpty()) emptyMap()
     else countUnreadByChannel(userId, channelIds).associate { it.getChannelId() to it.getCount() }
+
+/** Unread mention count per channel id. Channels that aren't in the map have no unread mentions. */
+fun MessageRepository.mentionCounts(userId: Long, channelIds: Collection<Long>): Map<Long, Long> =
+    if (channelIds.isEmpty()) emptyMap()
+    else countMentionsByChannel(userId, channelIds).associate { it.getChannelId() to it.getCount() }

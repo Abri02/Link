@@ -4,6 +4,7 @@ import com.github.abri02.link.jwt.Claims
 import com.github.abri02.link.messaging.channel.ChannelMember
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
+import com.github.abri02.link.messaging.workspace.MemberWithUsername
 import com.github.abri02.link.messaging.workspace.WorkspaceMember
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.never
@@ -37,6 +39,7 @@ class MessageControllerTest {
     @Mock private lateinit var workspaceMembers: WorkspaceMemberRepository
     @Mock private lateinit var messages: MessageRepository
     @Mock private lateinit var reactions: MessageReactionRepository
+    @Mock private lateinit var mentions: MessageMentionRepository
     @Mock private lateinit var broker: SimpMessagingTemplate
 
     private lateinit var controller: MessageController
@@ -45,7 +48,7 @@ class MessageControllerTest {
     fun setup() {
         controller = MessageController(
             WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers),
-            channelMembers, messages, reactions, broker
+            channelMembers, workspaceMembers, messages, mentions, reactions, broker
         )
     }
 
@@ -141,6 +144,66 @@ class MessageControllerTest {
         assertThat(body.parentMessageId).isEqualTo(5L)
         verify(broker).convertAndSend(eq("/topic/thread.5"), any<MessageResponse>())
         verify(channelMembers, never()).findByChannelId(any())
+    }
+
+    @Test
+    fun `send stores mentions of channel members and flags their notification`() {
+        givenChannelMember(1L, 10L, 1L)
+        val text = "hi @bob @carol @dave @user1 @nobody"
+        given(messages.save(any<Message>())).willReturn(buildMessage(id = 7L, channelId = 1L, authorId = 1L, body = text))
+        // carol is in the workspace but not in the channel. The author mentioning themselves doesn't count.
+        given(channelMembers.findByChannelId(1L)).willReturn(
+            listOf(ChannelMember(1L, 1L), ChannelMember(1L, 2L), ChannelMember(1L, 4L))
+        )
+        given(workspaceMembers.findMembersWithUsernameByWorkspaceId(10L))
+            .willReturn(listOf(named(1L, "user1"), named(2L, "bob"), named(3L, "carol"), named(4L, "erin")))
+
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest(text)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        verify(mentions).saveAll(argThat<List<MessageMention>> { map { it.messageId to it.userId } == listOf(7L to 2L) })
+        verify(broker).convertAndSendToUser("2", "/queue/notifications", NotificationEvent(1L, 1L, text, mention = true))
+        verify(broker).convertAndSendToUser("4", "/queue/notifications", NotificationEvent(1L, 1L, text, mention = false))
+        verify(broker, never()).convertAndSendToUser(eq("3"), any(), any<Any>())
+        verify(broker, never()).convertAndSendToUser(eq("1"), any(), any<Any>())
+    }
+
+    @Test
+    fun `send skips the member lookup when the body has no mentions`() {
+        givenChannelMember(1L, 10L, 1L)
+        val text = "mail me at a@b.com"
+        given(messages.save(any<Message>())).willReturn(buildMessage(id = 7L, channelId = 1L, authorId = 1L, body = text))
+        given(channelMembers.findByChannelId(1L)).willReturn(listOf(ChannelMember(1L, 2L)))
+
+        respond { controller.send(buildJwt(1L), 1L, SendMessageRequest(text)) }
+
+        verify(workspaceMembers, never()).findMembersWithUsernameByWorkspaceId(any())
+        verifyNoInteractions(mentions)
+        verify(broker).convertAndSendToUser("2", "/queue/notifications", NotificationEvent(1L, 1L, text, mention = false))
+    }
+
+    @Test
+    fun `send notifies only the mentioned users of a thread reply`() {
+        givenChannelMember(1L, 10L, 1L)
+        given(messages.findById(5L)).willReturn(Optional.of(buildMessage(id = 5L, channelId = 1L, authorId = 2L, body = "Parent")))
+        given(messages.save(any<Message>())).willReturn(
+            buildMessage(id = 8L, channelId = 1L, authorId = 1L, body = "@bob look", parentMessageId = 5L)
+        )
+        given(channelMembers.findByChannelId(1L)).willReturn(
+            listOf(ChannelMember(1L, 1L), ChannelMember(1L, 2L), ChannelMember(1L, 3L))
+        )
+        given(workspaceMembers.findMembersWithUsernameByWorkspaceId(10L))
+            .willReturn(listOf(named(1L, "user1"), named(2L, "bob"), named(3L, "carol")))
+
+        val res = respond { controller.send(buildJwt(1L), 1L, SendMessageRequest("@bob look", parentMessageId = 5L)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        verify(mentions).saveAll(argThat<List<MessageMention>> { map { it.userId } == listOf(2L) })
+        verify(broker).convertAndSendToUser(
+            "2", "/queue/notifications",
+            NotificationEvent(1L, 1L, "@bob look", mention = true, parentMessageId = 5L)
+        )
+        verify(broker, never()).convertAndSendToUser(eq("3"), any(), any<Any>())
     }
 
     @Test
@@ -428,6 +491,12 @@ class MessageControllerTest {
         given(workspaces.existsById(workspaceId)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(workspaceId, userId))
             .willReturn(WorkspaceMember(workspaceId = workspaceId, userId = userId, role = role))
+    }
+
+    private fun named(id: Long, username: String) = object : MemberWithUsername {
+        override fun getUserId() = id
+        override fun getUsername() = username
+        override fun getRole() = WorkspaceRole.MEMBER.name
     }
 
     private fun buildJwt(userId: Long) = Jwt.withTokenValue("tok")

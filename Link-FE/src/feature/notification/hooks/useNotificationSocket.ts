@@ -33,11 +33,17 @@ export function useNotificationSocket(userId: number | null) {
         });
 
         client.subscribe("/user/queue/notifications", (frame) => {
-          const event: { channelId: number; authorId: number; bodyPreview: string } =
-            JSON.parse(frame.body);
+          // Thread replies (parentMessageId set) only arrive when they @mention the user.
+          const event: {
+            channelId: number;
+            authorId: number;
+            bodyPreview: string;
+            mention: boolean;
+            parentMessageId: number | null;
+          } = JSON.parse(frame.body);
           const selectedChannelId = useWorkspaceStore.getState().selectedChannelId;
           if (event.channelId !== selectedChannelId) {
-            increment(event.channelId);
+            increment(event.channelId, { unread: event.parentMessageId == null, mention: event.mention });
           } else {
             // The message is on screen, so move the server-side read marker past it.
             markChannelRead(event.channelId).catch(() => {});

@@ -150,19 +150,21 @@ class ChannelControllerTest {
     }
 
     @Test
-    fun `list includes the caller's unread count per channel`() {
+    fun `list includes the caller's unread and mention counts per channel`() {
         given(workspaces.existsById(1L)).willReturn(true)
         given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 2L))
             .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.MEMBER))
         given(channels.findJoinedChannels(1L, 2L))
             .willReturn(listOf(buildChannel(10L, 1L, "general"), buildChannel(11L, 1L, "random")))
         given(messages.countUnreadByChannel(2L, listOf(10L, 11L))).willReturn(listOf(unread(11L, 3L)))
+        given(messages.countMentionsByChannel(2L, listOf(10L, 11L))).willReturn(listOf(unread(11L, 1L)))
 
         val res = respond { controller.list(buildJwt(2L), 1L) }
 
         @Suppress("UNCHECKED_CAST")
         val body = res.body as List<ChannelResponse>
         assertThat(body.map { it.name to it.unreadCount }).containsExactly("general" to 0L, "random" to 3L)
+        assertThat(body.map { it.name to it.mentionCount }).containsExactly("general" to 0L, "random" to 1L)
     }
 
     @Test
@@ -176,6 +178,7 @@ class ChannelControllerTest {
 
         assertThat(res.body as List<*>).isEmpty()
         verify(messages, never()).countUnreadByChannel(any(), any())
+        verify(messages, never()).countMentionsByChannel(any(), any())
     }
 
     // ── helpers ───────────────────────────────────────────────────────
