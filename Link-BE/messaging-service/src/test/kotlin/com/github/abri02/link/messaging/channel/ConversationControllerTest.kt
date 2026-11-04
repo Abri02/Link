@@ -202,7 +202,7 @@ class ConversationControllerTest {
     }
 
     @Test
-    fun `list includes the caller's unread count per conversation`() {
+    fun `list includes the caller's unread and mention counts per conversation`() {
         callerRole(1L, WorkspaceRole.MEMBER)
         given(channels.findConversationsForUser(ws, 1L))
             .willReturn(listOf(conversation(40L, ChannelKind.DM, "1,2"), conversation(41L, ChannelKind.GROUP_DM, "1,2,3")))
@@ -212,12 +212,17 @@ class ConversationControllerTest {
             override fun getChannelId() = 40L
             override fun getCount() = 2L
         }))
+        given(messages.countMentionsByChannel(1L, listOf(40L, 41L))).willReturn(listOf(object : UnreadCountProjection {
+            override fun getChannelId() = 41L
+            override fun getCount() = 1L
+        }))
 
         val res = respond { controller.list(jwt(1L), ws) }
 
         @Suppress("UNCHECKED_CAST")
         val body = res.body as List<ConversationResponse>
         assertThat(body.map { it.id to it.unreadCount }).containsExactly(40L to 2L, 41L to 0L)
+        assertThat(body.map { it.id to it.mentionCount }).containsExactly(40L to 0L, 41L to 1L)
     }
 
     @Test

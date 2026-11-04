@@ -2,6 +2,7 @@ package com.github.abri02.link.messaging.message
 
 import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
+import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
@@ -47,10 +48,16 @@ data class MessageResponse(
     val type: String = MessageType.USER.name
 )
 
+/**
+ * Sent on `/user/queue/notifications`. Top-level messages notify every other channel member.
+ * Thread replies only notify the users they mention. `mention` is true for mentioned users.
+ */
 data class NotificationEvent(
     val channelId: Long,
     val authorId: Long,
-    val bodyPreview: String
+    val bodyPreview: String,
+    val mention: Boolean = false,
+    val parentMessageId: Long? = null
 )
 
 data class ErrorResponse(val message: String)
@@ -60,7 +67,9 @@ data class ErrorResponse(val message: String)
 class MessageController(
     private val access: WorkspaceAccess,
     private val channelMembers: ChannelMemberRepository,
+    private val workspaceMembers: WorkspaceMemberRepository,
     private val messages: MessageRepository,
+    private val mentions: MessageMentionRepository,
     private val reactions: MessageReactionRepository,
     private val broker: SimpMessagingTemplate
 ) {
@@ -74,7 +83,7 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        access.requireChannelMember(channelId, userId)
+        val channel = access.requireChannelMember(channelId, userId)
 
         if (req.body.isBlank())
             return ResponseEntity.badRequest().body(ErrorResponse("Message body cannot be empty"))
@@ -99,19 +108,43 @@ class MessageController(
             )
         )
         val response = message.toResponse()
+        val preview = response.body.take(100)
+        val memberIds by lazy { channelMembers.findByChannelId(channelId).map { it.userId }.toSet() }
+        val mentioned = saveMentions(message, channel.workspaceId) { memberIds }
+
         if (message.parentMessageId == null) {
             broker.convertAndSend("/topic/channel.$channelId", response)
-            val preview = response.body.take(100)
-            val notification = NotificationEvent(channelId, userId, preview)
-            channelMembers.findByChannelId(channelId)
-                .filter { it.userId != userId }
-                .forEach { broker.convertAndSendToUser(it.userId.toString(), "/queue/notifications", notification) }
+            memberIds.filter { it != userId }.forEach {
+                notify(it, NotificationEvent(channelId, userId, preview, mention = it in mentioned))
+            }
         } else {
             broker.convertAndSend("/topic/thread.${message.parentMessageId}", response)
+            mentioned.forEach {
+                notify(it, NotificationEvent(channelId, userId, preview, mention = true, parentMessageId = message.parentMessageId))
+            }
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
+
+    /**
+     * Stores a mention for every `@username` in the body that is a member of this channel (other
+     * than the author) and returns their ids. Workspace members outside the channel are ignored,
+     * so a channel's content never reaches people who can't read it.
+     */
+    private fun saveMentions(message: Message, workspaceId: Long, channelMemberIds: () -> Set<Long>): Set<Long> {
+        if (MentionParser.tokens(message.body).isEmpty()) return emptySet()
+        val memberIds = channelMemberIds()
+        val usernames = workspaceMembers.findMembersWithUsernameByWorkspaceId(workspaceId)
+            .filter { it.getUserId() in memberIds && it.getUserId() != message.authorId }
+            .associate { it.getUserId() to it.getUsername() }
+        val mentioned = MentionParser.resolve(message.body, usernames)
+        if (mentioned.isNotEmpty()) mentions.saveAll(mentioned.map { MessageMention(message.id!!, it) })
+        return mentioned
+    }
+
+    private fun notify(userId: Long, event: NotificationEvent) =
+        broker.convertAndSendToUser(userId.toString(), "/queue/notifications", event)
 
     @GetMapping
     fun list(
