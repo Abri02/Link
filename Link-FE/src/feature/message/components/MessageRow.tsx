@@ -10,6 +10,7 @@ import { useToggleReaction } from "../hooks/useToggleReaction";
 import { useEditMessage } from "../hooks/useEditMessage";
 import { useDeleteMessage } from "../hooks/useDeleteMessage";
 import type { Message } from "../api/message.types";
+import { MentionText } from "./MentionText";
 
 const EMOJI_PICKER = ["👍", "❤️", "😂", "🎉", "🔥", "😮", "😢", "👀"];
 
@@ -291,7 +292,7 @@ function MessageBody({ message }: { message: Message; isGrouped?: boolean }) {
       <VStack gap="0" alignItems="flex-start" flex="1" minW="0">
         <HStack gap="4px" alignItems="baseline">
           <Text color="#D4D4DC" fontSize="14px" lineHeight="1.5" wordBreak="break-word">
-            {message.body}
+            <MentionText body={message.body} />
           </Text>
           {message.editedAt && (
             <Text color="rgba(244,244,246,0.25)" fontSize="11px" flexShrink={0}>(edited)</Text>

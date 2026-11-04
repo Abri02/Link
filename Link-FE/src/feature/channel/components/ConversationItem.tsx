@@ -1,6 +1,7 @@
 import { HStack, Box, Text } from "@chakra-ui/react";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
-import { useNotificationStore } from "@/feature/notification/stores/notificationStore";
+import { CountBadges } from "@/feature/notification/components/CountBadges";
+import { useHasUnread } from "@/feature/notification/stores/notificationStore";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { conversationName, otherMembers, type Conversation } from "../api/channel.types";
 
@@ -39,7 +40,7 @@ export function ConversationItem({ conversation, isSelected, onClick }: Props) {
   const isGroup = conversation.kind === "GROUP_DM";
   const dmPartnerId = isGroup ? undefined : others[0]?.userId;
   const isOnline = usePresenceStore((s) => dmPartnerId != null && s.onlineIds.has(dmPartnerId));
-  const unread = useNotificationStore((s) => s.unreadCounts[conversation.id] ?? 0);
+  const unread = useHasUnread(conversation.id);
   const name = conversationName(conversation, currentUserId);
 
   return (
@@ -73,26 +74,10 @@ export function ConversationItem({ conversation, isSelected, onClick }: Props) {
           />
         )}
       </Box>
-      <Text fontSize="14px" fontWeight={isSelected || unread > 0 ? "600" : "400"} truncate flex="1" textAlign="left">
+      <Text fontSize="14px" fontWeight={isSelected || unread ? "600" : "400"} truncate flex="1" textAlign="left">
         {name}
       </Text>
-      {unread > 0 && !isSelected && (
-        <Box
-          bg="#6C63FF"
-          borderRadius="full"
-          minW="18px"
-          h="18px"
-          px="5px"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          flexShrink={0}
-        >
-          <Text fontSize="11px" fontWeight="700" color="#F4F4F6" lineHeight="1">
-            {unread > 99 ? "99+" : unread}
-          </Text>
-        </Box>
-      )}
+      {!isSelected && <CountBadges channelId={conversation.id} />}
     </HStack>
   );
 }

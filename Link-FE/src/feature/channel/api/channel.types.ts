@@ -7,6 +7,8 @@ export interface Channel {
   createdAt: string;
   /** Unread messages for the current user. Only the list endpoint fills it in. Elsewhere it's 0. */
   unreadCount: number;
+  /** Unread messages that @mention the current user. Only the list endpoint fills it in. */
+  mentionCount: number;
 }
 
 /** The channel every workspace starts with. The backend doesn't let anyone leave it. */
@@ -42,6 +44,8 @@ export interface Conversation {
   members: ConversationMember[];
   /** Unread messages for the current user. Only the list endpoint fills it in. Elsewhere it's 0. */
   unreadCount: number;
+  /** Unread messages that @mention the current user. Only the list endpoint fills it in. */
+  mentionCount: number;
 }
 
 export interface OpenConversationRequest {
