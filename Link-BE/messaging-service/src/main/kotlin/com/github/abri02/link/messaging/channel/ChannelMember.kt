@@ -15,7 +15,11 @@ class ChannelMember(
     val channelId: Long,
 
     @Column(nullable = false)
-    val userId: Long
+    val userId: Long,
+
+    /** The newest message the user has seen in this channel. Null means nothing has been read yet. */
+    @Column
+    var lastReadMessageId: Long? = null
 
 ) {
     @Id

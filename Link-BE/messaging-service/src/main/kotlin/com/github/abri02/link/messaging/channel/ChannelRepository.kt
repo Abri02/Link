@@ -65,4 +65,17 @@ interface ChannelMemberRepository : JpaRepository<ChannelMember, Long> {
           AND cm.channelId IN (SELECT c.id FROM Channel c WHERE c.workspaceId = :workspaceId)
     """)
     fun deleteByWorkspaceIdAndUserId(@Param("workspaceId") workspaceId: Long, @Param("userId") userId: Long): Int
+
+    /** Moves the user's read marker forward to [messageId]. It never moves backwards. */
+    @Modifying
+    @Query("""
+        UPDATE ChannelMember cm SET cm.lastReadMessageId = :messageId
+        WHERE cm.channelId = :channelId AND cm.userId = :userId
+          AND (cm.lastReadMessageId IS NULL OR cm.lastReadMessageId < :messageId)
+    """)
+    fun markRead(
+        @Param("channelId") channelId: Long,
+        @Param("userId") userId: Long,
+        @Param("messageId") messageId: Long
+    ): Int
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useNotificationStore } from "@/feature/notification/stores/notificationStore";
+import { markChannelRead } from "@/feature/channel/api/channel.api";
 
 interface WorkspaceState {
   selectedWorkspaceId: number | null;
@@ -20,6 +21,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   selectChannel: (id) => {
     useNotificationStore.getState().clear(id);
     set({ selectedChannelId: id, threadMessageId: null });
+    markChannelRead(id).catch(() => {});
   },
   clearChannel: () => set({ selectedChannelId: null, threadMessageId: null }),
   openThread: (messageId) => set({ threadMessageId: messageId }),

@@ -6,6 +6,8 @@ import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.message.MessageRepository
+import com.github.abri02.link.messaging.message.UnreadCountProjection
 import com.github.abri02.link.messaging.support.respond
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -28,12 +30,13 @@ class ChannelControllerTest {
     @Mock private lateinit var workspaceMembers: WorkspaceMemberRepository
     @Mock private lateinit var channels: ChannelRepository
     @Mock private lateinit var channelMembers: ChannelMemberRepository
+    @Mock private lateinit var messages: MessageRepository
 
     private lateinit var controller: ChannelController
 
     @BeforeEach
     fun setup() {
-        controller = ChannelController(WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers), channels, channelMembers)
+        controller = ChannelController(WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers), channels, channelMembers, messages)
     }
 
     // ── create ────────────────────────────────────────────────────────
@@ -146,7 +149,41 @@ class ChannelControllerTest {
         verify(channels).findJoinedChannels(1L, 2L)
     }
 
+    @Test
+    fun `list includes the caller's unread count per channel`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 2L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.MEMBER))
+        given(channels.findJoinedChannels(1L, 2L))
+            .willReturn(listOf(buildChannel(10L, 1L, "general"), buildChannel(11L, 1L, "random")))
+        given(messages.countUnreadByChannel(2L, listOf(10L, 11L))).willReturn(listOf(unread(11L, 3L)))
+
+        val res = respond { controller.list(buildJwt(2L), 1L) }
+
+        @Suppress("UNCHECKED_CAST")
+        val body = res.body as List<ChannelResponse>
+        assertThat(body.map { it.name to it.unreadCount }).containsExactly("general" to 0L, "random" to 3L)
+    }
+
+    @Test
+    fun `list skips the unread query when the caller has no channels`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(workspaceMembers.findByWorkspaceIdAndUserId(1L, 2L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.GUEST))
+        given(channels.findJoinedChannels(1L, 2L)).willReturn(emptyList())
+
+        val res = respond { controller.list(buildJwt(2L), 1L) }
+
+        assertThat(res.body as List<*>).isEmpty()
+        verify(messages, never()).countUnreadByChannel(any(), any())
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
+
+    private fun unread(channelId: Long, count: Long) = object : UnreadCountProjection {
+        override fun getChannelId() = channelId
+        override fun getCount() = count
+    }
 
     private fun buildJwt(userId: Long) = Jwt.withTokenValue("tok")
         .header("alg", "RS256")

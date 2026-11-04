@@ -1,6 +1,8 @@
 package com.github.abri02.link.messaging.channel
 
 import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.message.MessageRepository
+import com.github.abri02.link.messaging.message.unreadCounts
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -23,7 +25,9 @@ data class ChannelResponse(
     val name: String,
     val kind: String,
     val createdBy: Long,
-    val createdAt: Instant
+    val createdAt: Instant,
+    /** Only filled in by the channel list. Everywhere else it's 0. */
+    val unreadCount: Long = 0
 )
 
 data class ErrorResponse(val message: String)
@@ -33,7 +37,8 @@ data class ErrorResponse(val message: String)
 class ChannelController(
     private val access: WorkspaceAccess,
     private val channels: ChannelRepository,
-    private val channelMembers: ChannelMemberRepository
+    private val channelMembers: ChannelMemberRepository,
+    private val messages: MessageRepository
 ) {
 
     @PostMapping
@@ -75,7 +80,9 @@ class ChannelController(
 
         access.requireMember(workspaceId, userId)
 
-        return ResponseEntity.ok(channels.findJoinedChannels(workspaceId, userId).map { it.toResponse() })
+        val joined = channels.findJoinedChannels(workspaceId, userId)
+        val unread = messages.unreadCounts(userId, joined.map { it.id!! })
+        return ResponseEntity.ok(joined.map { it.toResponse(unread[it.id] ?: 0) })
     }
 
     /** Public channels the caller can join. Guests only use the channels they were added to. */
@@ -95,4 +102,5 @@ class ChannelController(
     }
 }
 
-fun Channel.toResponse() = ChannelResponse(id!!, workspaceId, name, kind.name, createdBy, createdAt)
+fun Channel.toResponse(unreadCount: Long = 0) =
+    ChannelResponse(id!!, workspaceId, name, kind.name, createdBy, createdAt, unreadCount)

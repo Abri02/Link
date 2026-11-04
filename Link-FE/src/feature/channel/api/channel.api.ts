@@ -16,6 +16,10 @@ export const joinChannel = (channelId: number): Promise<Channel> =>
 export const leaveChannel = (channelId: number): Promise<void> =>
   apiClient(`/channels/${channelId}/members/me`, { method: "DELETE" });
 
+/** Marks everything in a channel, DM or group DM as read for the current user. */
+export const markChannelRead = (channelId: number): Promise<void> =>
+  apiClient(`/channels/${channelId}/read`, { method: "POST" });
+
 export const listChannelMembers = (channelId: number): Promise<ChannelMember[]> =>
   apiClient(`/channels/${channelId}/members`);
 
