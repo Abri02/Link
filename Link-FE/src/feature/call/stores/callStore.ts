@@ -6,6 +6,8 @@ export interface CallControls {
   accept: () => void;
   reject: () => void;
   hangUp: () => void;
+  /** Starts sharing the screen instead of the camera, or stops it. Only while connected. */
+  toggleScreenShare: () => void;
 }
 
 /**
@@ -19,6 +21,8 @@ interface CallState {
   peerUserId: number | null;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  /** Our screen capture while we share it (sent in place of the camera). */
+  screenStream: MediaStream | null;
   endReason: CallEndReason | null;
   controls: CallControls | null;
 }
@@ -30,6 +34,7 @@ export const idleCall = {
   peerUserId: null,
   localStream: null,
   remoteStream: null,
+  screenStream: null,
   endReason: null,
 } satisfies Omit<CallState, "controls">;
 
