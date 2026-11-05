@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, HStack, IconButton, Text, VStack } from "@chakra-ui/react";
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
 import { Tip } from "@/components/Tip";
 import type { CallEndReason } from "../api/call.types";
 import { useCallStore } from "../stores/callStore";
@@ -16,7 +16,17 @@ const END_TEXT: Record<CallEndReason, string> = {
   failed: "Connection failed",
 };
 
-function StreamVideo({ stream, muted, label }: { stream: MediaStream | null; muted?: boolean; label: string }) {
+function StreamVideo({
+  stream,
+  muted,
+  label,
+  fit = "cover",
+}: {
+  stream: MediaStream | null;
+  muted?: boolean;
+  label: string;
+  fit?: "cover" | "contain";
+}) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream;
@@ -28,7 +38,7 @@ function StreamVideo({ stream, muted, label }: { stream: MediaStream | null; mut
       autoPlay
       playsInline
       muted={muted}
-      style={{ width: "100%", height: "100%", objectFit: "cover", background: "#0E0E1A" }}
+      style={{ width: "100%", height: "100%", objectFit: fit, background: "#0E0E1A" }}
     />
   );
 }
@@ -50,6 +60,7 @@ function ActiveCallWindow() {
   const peerUserId = useCallStore((s) => s.peerUserId);
   const localStream = useCallStore((s) => s.localStream);
   const remoteStream = useCallStore((s) => s.remoteStream);
+  const screenStream = useCallStore((s) => s.screenStream);
   const endReason = useCallStore((s) => s.endReason);
   const controls = useCallStore((s) => s.controls);
   const peerName = usePeerName(channelId, peerUserId) ?? "Unknown user";
@@ -67,6 +78,8 @@ function ActiveCallWindow() {
   const statusText =
     status === "calling" ? `Calling ${peerName}…` : status === "ended" ? END_TEXT[endReason ?? "hangup"] : peerName;
   const live = status === "calling" || status === "connected";
+  const sharing = screenStream != null;
+  const canShare = status === "connected" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
 
   return (
     <VStack
@@ -86,7 +99,8 @@ function ActiveCallWindow() {
       gap="0"
     >
       <Box position="relative" w="full" aspectRatio={4 / 3} bg="#0E0E1A">
-        {status === "connected" && <StreamVideo stream={remoteStream} label="Remote video" />}
+        {/* "contain" so a shared screen isn't cropped. */}
+        {status === "connected" && <StreamVideo stream={remoteStream} label="Remote video" fit="contain" />}
         {status !== "connected" && (
           <Box position="absolute" inset="0" display="flex" alignItems="center" justifyContent="center">
             <Text color="rgba(244,244,246,0.6)" fontSize="14px">
@@ -105,7 +119,7 @@ function ActiveCallWindow() {
             overflow="hidden"
             border="1px solid #38385E"
           >
-            <StreamVideo stream={localStream} muted label="Your video" />
+            <StreamVideo stream={screenStream ?? localStream} muted label="Your video" fit={sharing ? "contain" : "cover"} />
           </Box>
         )}
       </Box>
@@ -142,6 +156,21 @@ function ActiveCallWindow() {
                 {cameraOff ? <VideoOff size={16} /> : <Video size={16} />}
               </IconButton>
             </Tip>
+            {canShare && (
+              <Tip label={sharing ? "Stop sharing" : "Share screen"} placement="top">
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Share screen"
+                  aria-pressed={sharing}
+                  color={sharing ? "#10B981" : "#F4F4F6"}
+                  _hover={{ bg: "#2A2A48" }}
+                  onClick={() => controls?.toggleScreenShare()}
+                >
+                  {sharing ? <MonitorOff size={16} /> : <MonitorUp size={16} />}
+                </IconButton>
+              </Tip>
+            )}
             <IconButton
               size="sm"
               aria-label="Hang up"

@@ -21,6 +21,8 @@ interface Session {
   /** Callee: accept() was called. Caller: ACCEPT was received. */
   accepted: boolean;
   local: MediaStream | null;
+  /** Screen capture sent in place of the camera track while sharing. */
+  screen: MediaStream | null;
   pc: RTCPeerConnection | null;
   /** Remote ICE candidates that arrived before the remote description was set. */
   pendingIce: RTCIceCandidateInit[];
@@ -44,6 +46,9 @@ const stopTracks = (stream: MediaStream | null) => stream?.getTracks().forEach((
  * Both sides trickle ICE. The server doesn't guarantee order, so ICE is buffered until the remote
  * description is set. Every exit path goes through `end()`, which stops the tracks and closes the
  * peer connection.
+ *
+ * Screen share (while connected): `getDisplayMedia`, then `replaceTrack` on the video sender, and
+ * back to the camera when it stops (our button or the browser's "Stop sharing").
  */
 export function useWebRtcCall(userId: number | null) {
   useEffect(() => {
@@ -78,6 +83,7 @@ export function useWebRtcCall(userId: number | null) {
         s.pc.close();
       }
       stopTracks(s.local);
+      stopTracks(s.screen);
       set({ ...idleCall, status: "ended", callId: s.callId, channelId: s.channelId, peerUserId: s.peerUserId, endReason: reason });
       clearTimeout(resetTimer);
       resetTimer = setTimeout(() => {
@@ -135,7 +141,7 @@ export function useWebRtcCall(userId: number | null) {
         }
         const s: Session = {
           callId: sig.callId, channelId: sig.channelId, peerUserId: sig.fromUserId, role: "callee",
-          accepted: false, local: null, pc: null, pendingIce: [], remoteSet: false,
+          accepted: false, local: null, screen: null, pc: null, pendingIce: [], remoteSet: false,
         };
         session = s;
         s.timer = setTimeout(() => end("no-answer"), RINGING_FALLBACK_MS);
@@ -194,7 +200,7 @@ export function useWebRtcCall(userId: number | null) {
       if (session || !client.connected) return;
       const s: Session = {
         callId: crypto.randomUUID(), channelId, peerUserId, role: "caller",
-        accepted: false, local: null, pc: null, pendingIce: [], remoteSet: false,
+        accepted: false, local: null, screen: null, pc: null, pendingIce: [], remoteSet: false,
       };
       session = s;
       clearTimeout(resetTimer);
@@ -238,9 +244,48 @@ export function useWebRtcCall(userId: number | null) {
       if (session?.role === "callee" && !session.accepted) end("declined", "REJECT");
     };
 
+    // Screen share swaps the outgoing video track with replaceTrack, so no renegotiation is needed.
+    const videoSender = (s: Session) => s.pc?.getSenders().find((x) => x.track?.kind === "video");
+
+    const stopScreenShare = (s: Session) => {
+      const screen = s.screen;
+      if (!screen) return;
+      s.screen = null;
+      stopTracks(screen);
+      set({ screenStream: null });
+      videoSender(s)?.replaceTrack(s.local?.getVideoTracks()[0] ?? null).catch(() => {});
+    };
+
+    const toggleScreenShare = async () => {
+      const s = session;
+      if (!s || !s.pc || !s.accepted) return;
+      if (s.screen) return stopScreenShare(s);
+      let screen: MediaStream;
+      try {
+        screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      } catch {
+        return; // picker cancelled or not allowed: keep the camera
+      }
+      const track = screen.getVideoTracks()[0];
+      const sender = videoSender(s);
+      // The call ended, or another share started, while the picker was open.
+      if (session !== s || s.screen || !track || !sender) return stopTracks(screen);
+      s.screen = screen;
+      // The browser's own "Stop sharing" button ends the track.
+      track.onended = () => {
+        if (s.screen === screen) stopScreenShare(s);
+      };
+      set({ screenStream: screen });
+      try {
+        await sender.replaceTrack(track);
+      } catch {
+        if (s.screen === screen) stopScreenShare(s);
+      }
+    };
+
     // Closing or reloading the tab hangs up, so the peer isn't left waiting.
     window.addEventListener("pagehide", hangUp);
-    set({ controls: { startCall, accept, reject, hangUp } });
+    set({ controls: { startCall, accept, reject, hangUp, toggleScreenShare } });
     client.activate();
 
     return () => {
