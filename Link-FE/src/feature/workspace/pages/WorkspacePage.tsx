@@ -6,11 +6,13 @@ import { ThreadDrawer } from "@/feature/message/components/ThreadDrawer";
 import { useNotificationSocket } from "@/feature/notification/hooks/useNotificationSocket";
 import { useConversationSocket } from "@/feature/channel/hooks/useConversationSocket";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
+import { useWebRtcCall } from "@/feature/call/hooks/useWebRtcCall";
 
 export function WorkspacePage() {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   useNotificationSocket(userId);
   useConversationSocket(userId);
+  useWebRtcCall(userId);
 
   return (
     <>
