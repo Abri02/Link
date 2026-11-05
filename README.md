@@ -171,7 +171,7 @@ Link/
 - `user_presence` — user_id, last_seen_at, online (boolean)
 
 **messaging schema**
-- `workspace` — id, name, slug, owner_id, created_at
+- `workspace` — id, name, slug, owner_id, created_at, plan (FREE/PREMIUM, default FREE)
 - `workspace_member` — workspace_id, user_id, role (OWNER/ADMIN/MEMBER/GUEST)
 - `channel` — id, workspace_id, name, kind (PUBLIC/PRIVATE/DM), created_by
 - `channel_member` — channel_id, user_id
@@ -208,6 +208,24 @@ also require `channel_member` membership.
 
 Guests can only see and use the channels they were added to. Hiding a button in the UI is
 cosmetic. The backend enforces every row above.
+
+### 3.7 Plans (Free vs Premium)
+
+Subscriptions are **per workspace**: the OWNER pays (Stripe test mode) and every member of
+that workspace gets Premium. The plan lives in `workspace.plan` (`FREE` | `PREMIUM`, default
+`FREE`). A failed or cancelled subscription moves the workspace back to `FREE`.
+
+| Feature | Free | Premium | Enforced in |
+| --- | :---: | :---: | --- |
+| Workspaces, channels, DMs, threads, reactions, mentions | ✅ | ✅ | — |
+| Video calls (1-on-1 DMs) | ❌ | ✅ | F5 |
+| Max upload size per file | 5 MB | 20 MB | F5 |
+| Guests per workspace | max 3 | unlimited | F5 |
+| Message history | last 90 days | full | F5 |
+
+Hitting a limit returns `402`/`403` with an error code, and the UI shows an upgrade prompt
+(F7). Downgrading never deletes data: older messages and extra guests stay, they are only
+hidden or blocked until the workspace is Premium again.
 
 ---
 
