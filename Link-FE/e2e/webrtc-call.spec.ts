@@ -5,8 +5,8 @@ import { API, setupTwoUsersInWorkspace } from "./helpers";
 test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
 
 /**
- * There is no call UI yet (NEXT_STEPS E3), so these specs drive `useWebRtcCall` through its store.
- * Importing the store's source URL from the Vite dev server returns the same module instance the
+ * These specs drive `useWebRtcCall` directly through its store, so they also cover paths the UI
+ * can't easily trigger (e.g. the 30 s timeout). The call UI is covered by `call-ui.spec.ts`. Importing the store's source URL from the Vite dev server returns the same module instance the
  * app uses.
  */
 const STORE = "/src/feature/call/stores/callStore.ts";

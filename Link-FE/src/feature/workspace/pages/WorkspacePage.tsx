@@ -7,6 +7,8 @@ import { useNotificationSocket } from "@/feature/notification/hooks/useNotificat
 import { useConversationSocket } from "@/feature/channel/hooks/useConversationSocket";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { useWebRtcCall } from "@/feature/call/hooks/useWebRtcCall";
+import { IncomingCallDialog } from "@/feature/call/components/IncomingCallDialog";
+import { CallWindow } from "@/feature/call/components/CallWindow";
 
 export function WorkspacePage() {
   const userId = useAuthStore((s) => s.user?.id ?? null);
@@ -22,6 +24,8 @@ export function WorkspacePage() {
         <MessageArea />
       </HStack>
       <ThreadDrawer />
+      <IncomingCallDialog />
+      <CallWindow />
     </>
   );
 }

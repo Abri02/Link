@@ -11,6 +11,7 @@ import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembe
 import { useConversations } from "@/feature/channel/hooks/useConversations";
 import { ConversationMenu } from "@/feature/channel/components/ConversationMenu";
 import { ChannelMenu } from "@/feature/channel/components/ChannelMenu";
+import { CallButton } from "@/feature/call/components/CallButton";
 import { conversationName } from "@/feature/channel/api/channel.types";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { MessageList } from "./MessageList";
@@ -63,6 +64,7 @@ export function MessageArea() {
         <Text color="#F4F4F6" fontWeight="600" fontSize="15px" flex="1" truncate>
           {title}
         </Text>
+        {conversation && <CallButton conversation={conversation} />}
         {conversation && <ConversationMenu conversation={conversation} />}
         {channel && <ChannelMenu channel={channel} />}
         <HStack gap="4px" w="200px">
