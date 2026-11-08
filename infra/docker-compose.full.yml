@@ -123,6 +123,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/link
       SPRING_DATASOURCE_USERNAME: link
       SPRING_DATASOURCE_PASSWORD: link
+      MESSAGING_URL: http://messaging-service:8083
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
     depends_on:
       postgres:
         condition: service_healthy
