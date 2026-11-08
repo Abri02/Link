@@ -41,13 +41,13 @@ class AttachmentControllerTest {
     fun `upload saves attachment and returns 201`() {
         val file = MockMultipartFile("file", "photo.png", "image/png", ByteArray(100))
         val saved = buildAttachment(id = 1L, filename = "photo.png", mimeType = "image/png", sizeBytes = 100L)
-        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
         given(repo.save(any<Attachment>())).willReturn(saved)
 
         val res = controller.upload(buildJwt(42L), file, 5L)
 
         assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
-        val body = res.body!!
+        val body = res.body as AttachmentResponse
         assertThat(body.filename).isEqualTo("photo.png")
         assertThat(body.mimeType).isEqualTo("image/png")
         assertThat(body.sizeBytes).isEqualTo(100L)
@@ -58,7 +58,7 @@ class AttachmentControllerTest {
     fun `upload stores uploader id from jwt`() {
         val file = MockMultipartFile("file", "doc.txt", "text/plain", ByteArray(10))
         val saved = buildAttachment(id = 2L, filename = "doc.txt", mimeType = "text/plain", sizeBytes = 10L)
-        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
         given(repo.save(any<Attachment>())).willReturn(saved)
 
         controller.upload(buildJwt(99L), file, 5L)
@@ -72,19 +72,19 @@ class AttachmentControllerTest {
     fun `upload uses octet-stream when content type is null`() {
         val file = MockMultipartFile("file", "data.bin", null, ByteArray(50))
         val saved = buildAttachment(id = 3L, filename = "data.bin", mimeType = "application/octet-stream", sizeBytes = 50L)
-        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
         given(repo.save(any<Attachment>())).willReturn(saved)
 
         val res = controller.upload(buildJwt(1L), file, 5L)
         assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
-        assertThat(res.body!!.mimeType).isEqualTo("application/octet-stream")
+        assertThat((res.body as AttachmentResponse).mimeType).isEqualTo("application/octet-stream")
     }
 
     @Test
     fun `upload generates object key containing file extension`() {
         val file = MockMultipartFile("file", "image.jpg", "image/jpeg", ByteArray(200))
         val saved = buildAttachment(id = 4L, filename = "image.jpg", mimeType = "image/jpeg", sizeBytes = 200L)
-        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
         given(repo.save(any<Attachment>())).willReturn(saved)
 
         controller.upload(buildJwt(1L), file, 5L)
@@ -98,7 +98,7 @@ class AttachmentControllerTest {
     @Test
     fun `upload stores channel id`() {
         val file = MockMultipartFile("file", "doc.txt", "text/plain", ByteArray(10))
-        given(channelAccess.isMember(5L, "tok")).willReturn(true)
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
         given(repo.save(any<Attachment>())).willReturn(buildAttachment(id = 5L, filename = "doc.txt", mimeType = "text/plain", sizeBytes = 10L))
 
         controller.upload(buildJwt(1L), file, 5L)
@@ -111,12 +111,50 @@ class AttachmentControllerTest {
     @Test
     fun `upload returns 403 when caller is not a channel member`() {
         val file = MockMultipartFile("file", "doc.txt", "text/plain", ByteArray(10))
-        given(channelAccess.isMember(5L, "tok")).willReturn(false)
+        given(channelAccess.planIfMember(5L, "tok")).willReturn(null)
 
         val res = controller.upload(buildJwt(1L), file, 5L)
 
         assertThat(res.statusCode).isEqualTo(HttpStatus.FORBIDDEN)
         verifyNoInteractions(minio, repo)
+    }
+
+    @Test
+    fun `upload over 5 MB returns 402 on the FREE plan and stores nothing`() {
+        val file = MockMultipartFile("file", "big.bin", "application/octet-stream", ByteArray(5 * 1024 * 1024 + 1))
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
+
+        val res = controller.upload(buildJwt(1L), file, 5L)
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.PAYMENT_REQUIRED)
+        assertThat((res.body as PlanLimitResponse).code).isEqualTo("FILE_TOO_LARGE_FOR_PLAN")
+        verifyNoInteractions(minio, repo)
+    }
+
+    @Test
+    fun `upload of exactly 5 MB is allowed on the FREE plan`() {
+        val file = MockMultipartFile("file", "ok.bin", "application/octet-stream", ByteArray(5 * 1024 * 1024))
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("FREE")
+        given(repo.save(any<Attachment>())).willReturn(buildAttachment(6L, "ok.bin", "application/octet-stream", 5L * 1024 * 1024))
+
+        assertThat(controller.upload(buildJwt(1L), file, 5L).statusCode).isEqualTo(HttpStatus.CREATED)
+    }
+
+    @Test
+    fun `upload over 5 MB is allowed on the PREMIUM plan`() {
+        val file = MockMultipartFile("file", "big.bin", "application/octet-stream", ByteArray(5 * 1024 * 1024 + 1))
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("PREMIUM")
+        given(repo.save(any<Attachment>())).willReturn(buildAttachment(7L, "big.bin", "application/octet-stream", 5L * 1024 * 1024 + 1))
+
+        assertThat(controller.upload(buildJwt(1L), file, 5L).statusCode).isEqualTo(HttpStatus.CREATED)
+    }
+
+    @Test
+    fun `an unknown plan gets the FREE limit`() {
+        val file = MockMultipartFile("file", "big.bin", "application/octet-stream", ByteArray(5 * 1024 * 1024 + 1))
+        given(channelAccess.planIfMember(5L, "tok")).willReturn("SOMETHING")
+
+        assertThat(controller.upload(buildJwt(1L), file, 5L).statusCode).isEqualTo(HttpStatus.PAYMENT_REQUIRED)
     }
 
     // ── download ──────────────────────────────────────────────────────

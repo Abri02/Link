@@ -6,6 +6,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
+data class PlanLimitResponse(val message: String, val code: String)
+
 @RestControllerAdvice
 class AccessExceptionHandler {
 
@@ -16,4 +18,9 @@ class AccessExceptionHandler {
     @ExceptionHandler(NotFoundException::class)
     fun notFound(e: NotFoundException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse(e.message ?: "Not found"))
+
+    @ExceptionHandler(PlanLimitException::class)
+    fun planLimit(e: PlanLimitException): ResponseEntity<PlanLimitResponse> =
+        ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+            .body(PlanLimitResponse(e.message ?: "Plan limit reached", e.code))
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.time.Instant
 
 interface ReplyCountProjection {
     fun getParentMessageId(): Long
@@ -18,20 +19,23 @@ interface UnreadCountProjection {
 
 @Repository
 interface MessageRepository : JpaRepository<Message, Long> {
-    fun findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+    fun findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(
         channelId: Long,
+        since: Instant,
         pageable: Pageable
     ): List<Message>
 
-    fun findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+    fun findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(
         channelId: Long,
         beforeId: Long,
+        since: Instant,
         pageable: Pageable
     ): List<Message>
 
-    fun findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+    fun findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(
         channelId: Long,
         query: String,
+        since: Instant,
         pageable: Pageable
     ): List<Message>
 

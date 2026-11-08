@@ -6,6 +6,7 @@ import com.github.abri02.link.messaging.channel.ChannelKind
 import com.github.abri02.link.messaging.channel.ChannelMember
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
+import com.github.abri02.link.messaging.access.PlanLimitResponse
 import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.support.respond
 import org.assertj.core.api.Assertions.assertThat
@@ -22,6 +23,7 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.jwt.Jwt
+import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
 class WorkspaceControllerTest {
@@ -132,6 +134,105 @@ class WorkspaceControllerTest {
         assertThat(saved.firstValue.channelId).isEqualTo(10L)
         assertThat(saved.firstValue.userId).isEqualTo(2L)
         verify(channels, never()).findByWorkspaceId(any())
+    }
+
+    // ── plan: guest limit ─────────────────────────────────────────────
+
+    @Test
+    fun `adding a 4th guest returns 402 on the FREE plan`() {
+        givenOwnerOnPlan(WorkspacePlan.FREE, guests = 3L)
+        given(members.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(false)
+
+        val res = respond { controller.addMember(buildJwt(1L), 1L, AddMemberRequest(2L, WorkspaceRole.GUEST)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.PAYMENT_REQUIRED)
+        assertThat((res.body as PlanLimitResponse).code).isEqualTo("GUEST_LIMIT_REACHED")
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `inviting a 4th guest returns 402 on the FREE plan`() {
+        givenOwnerOnPlan(WorkspacePlan.FREE, guests = 3L)
+        given(members.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(false)
+        given(authService.lookup("bob", "Bearer tok")).willReturn(UserLookupResult(2L, "bob", "Bob"))
+
+        val res = respond { controller.inviteMember(buildJwt(1L), 1L, InviteRequest("bob", WorkspaceRole.GUEST), "Bearer tok") }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.PAYMENT_REQUIRED)
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `the 3rd guest is allowed on the FREE plan`() {
+        givenOwnerOnPlan(WorkspacePlan.FREE, guests = 2L)
+        given(members.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(false)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+        given(channels.findByWorkspaceIdAndKind(1L, ChannelKind.PUBLIC)).willReturn(emptyList())
+
+        val res = respond { controller.addMember(buildJwt(1L), 1L, AddMemberRequest(2L, WorkspaceRole.GUEST)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+    }
+
+    @Test
+    fun `a PREMIUM workspace has no guest limit`() {
+        givenOwnerOnPlan(WorkspacePlan.PREMIUM, guests = null)
+        given(members.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(false)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+        given(channels.findByWorkspaceIdAndKind(1L, ChannelKind.PUBLIC)).willReturn(emptyList())
+
+        val res = respond { controller.addMember(buildJwt(1L), 1L, AddMemberRequest(2L, WorkspaceRole.GUEST)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+    }
+
+    @Test
+    fun `a MEMBER can still be added when the guest limit is reached`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.OWNER))
+        given(members.existsByWorkspaceIdAndUserId(1L, 2L)).willReturn(false)
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+        given(channels.findByWorkspaceIdAndKind(1L, ChannelKind.PUBLIC)).willReturn(emptyList())
+
+        val res = respond { controller.addMember(buildJwt(1L), 1L, AddMemberRequest(2L, WorkspaceRole.MEMBER)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.CREATED)
+        verify(members, never()).countByWorkspaceIdAndRole(1L, WorkspaceRole.GUEST)
+    }
+
+    @Test
+    fun `changing a member to GUEST returns 402 when the FREE limit is reached`() {
+        givenOwnerOnPlan(WorkspacePlan.FREE, guests = 3L)
+        given(members.findByWorkspaceIdAndUserId(1L, 2L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.MEMBER))
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 2L, ChangeRoleRequest(WorkspaceRole.GUEST)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.PAYMENT_REQUIRED)
+        verify(members, never()).save(any<WorkspaceMember>())
+    }
+
+    @Test
+    fun `a guest over the limit can stay a guest after a downgrade`() {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.OWNER))
+        given(members.findByWorkspaceIdAndUserId(1L, 2L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 2L, role = WorkspaceRole.GUEST))
+        given(members.save(any<WorkspaceMember>())).willAnswer { it.arguments[0] }
+
+        val res = respond { controller.changeRole(buildJwt(1L), 1L, 2L, ChangeRoleRequest(WorkspaceRole.GUEST)) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+    }
+
+    private fun givenOwnerOnPlan(plan: WorkspacePlan, guests: Long?) {
+        given(workspaces.existsById(1L)).willReturn(true)
+        given(members.findByWorkspaceIdAndUserId(1L, 1L))
+            .willReturn(WorkspaceMember(workspaceId = 1L, userId = 1L, role = WorkspaceRole.OWNER))
+        given(workspaces.findById(1L)).willReturn(Optional.of(Workspace(name = "W", slug = "w", ownerId = 1L, plan = plan)))
+        if (guests != null) given(members.countByWorkspaceIdAndRole(1L, WorkspaceRole.GUEST)).willReturn(guests)
     }
 
     // ── inviteMember ──────────────────────────────────────────────────

@@ -10,8 +10,10 @@ import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.domain.PageRequest
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class MessageRepositoryTest : PostgresIntegrationTest() {
 
@@ -104,6 +106,26 @@ class MessageRepositoryTest : PostgresIntegrationTest() {
 
         // The bulk update bypasses the persistence context, so the counts show the stored marker.
         assertThat(messages.unreadCounts(2L, listOf(ch.id))).isEmpty()
+    }
+
+    @Test
+    fun `history queries leave out messages older than the cutoff`() {
+        val ws = workspaces.save(Workspace(name = "F5", slug = "f5-${System.nanoTime()}", ownerId = 1L))
+        val ch = channels.save(Channel(workspaceId = ws.id!!, name = "general", createdBy = 1L))
+        val cutoff = Instant.now().minus(90, ChronoUnit.DAYS)
+        val old = messages.save(Message(channelId = ch.id!!, authorId = 1L, body = "needle old", createdAt = cutoff.minus(1, ChronoUnit.DAYS)))
+        val recent = messages.save(Message(channelId = ch.id, authorId = 1L, body = "needle new", createdAt = cutoff.plus(1, ChronoUnit.DAYS)))
+        val page = PageRequest.of(0, 10)
+
+        assertThat(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(ch.id, cutoff, page).map { it.id })
+            .containsExactly(recent.id)
+        assertThat(messages.findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(ch.id, "NEEDLE", cutoff, page).map { it.id })
+            .containsExactly(recent.id)
+        assertThat(messages.findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(ch.id, recent.id!! + 1, cutoff, page).map { it.id })
+            .containsExactly(recent.id)
+        // The Premium cutoff keeps everything, newest first.
+        assertThat(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(ch.id, Instant.EPOCH, page).map { it.id })
+            .containsExactly(recent.id, old.id)
     }
 
     private fun mention(messageId: Long, userId: Long) = mentions.save(MessageMention(messageId, userId))

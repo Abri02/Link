@@ -1,17 +1,24 @@
 package com.github.abri02.link.messaging.call
 
+import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.channel.Channel
 import com.github.abri02.link.messaging.channel.ChannelKind
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.channel.ChannelRepository
+import com.github.abri02.link.messaging.workspace.Workspace
+import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
+import com.github.abri02.link.messaging.workspace.WorkspacePlan
+import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
+import org.mockito.Mockito.lenient
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -28,6 +35,8 @@ class CallSignalControllerTest {
     @Mock lateinit var channels: ChannelRepository
     @Mock lateinit var channelMembers: ChannelMemberRepository
     @Mock lateinit var calls: CallRepository
+    @Mock lateinit var workspaces: WorkspaceRepository
+    @Mock lateinit var workspaceMembers: WorkspaceMemberRepository
     @Mock lateinit var broker: SimpMessagingTemplate
 
     private lateinit var controller: CallSignalController
@@ -38,7 +47,10 @@ class CallSignalControllerTest {
 
     @BeforeEach
     fun setup() {
-        controller = CallSignalController(channels, channelMembers, calls, broker)
+        controller = CallSignalController(
+            channels, channelMembers, calls,
+            WorkspaceAccess(workspaces, workspaceMembers, channels, channelMembers), broker
+        )
     }
 
     @Test
@@ -180,10 +192,92 @@ class CallSignalControllerTest {
         verify(calls, never()).save(any())
     }
 
-    private fun givenDm(kind: ChannelKind, from: Long, to: Long) {
+    // ── plan: video calls ─────────────────────────────────────────────
+
+    @Test
+    fun `an INVITE on the FREE plan is refused and never reaches the callee`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+
+        controller.signal(invite(to = callee), principal(caller))
+
+        verify(broker).convertAndSendToUser(
+            "1",
+            "/queue/call",
+            CallSignal(CallSignalType.PREMIUM_REQUIRED, "c1", toUserId = caller, channelId = dmId, fromUserId = callee)
+        )
+        verify(broker, never()).convertAndSendToUser(eq("2"), any(), any<Any>())
+    }
+
+    @Test
+    fun `an ACCEPT on the FREE plan is refused and stores no call`() {
+        givenDm(ChannelKind.DM, callee, caller, WorkspacePlan.FREE)
+
+        controller.signal(CallSignal(CallSignalType.ACCEPT, "c1", toUserId = caller, channelId = dmId), principal(callee))
+
+        verify(calls, never()).save(any())
+        verify(broker, never()).convertAndSendToUser(eq("1"), any(), any<Any>())
+    }
+
+    @Test
+    fun `an OFFER without a running call is dropped on the FREE plan`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+        given(calls.findByCallId("c1")).willReturn(null)
+
+        controller.signal(offer(), principal(caller))
+
+        verifyNotRelayed()
+    }
+
+    @Test
+    fun `an OFFER for an ended call or a call of another channel is dropped on the FREE plan`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+        given(calls.findByCallId("c1")).willReturn(Call("c1", dmId, caller, callee, endedAt = Instant.EPOCH))
+        given(calls.findByCallId("c2")).willReturn(Call("c2", 99L, caller, callee))
+
+        controller.signal(offer(), principal(caller))
+        controller.signal(offer().copy(callId = "c2"), principal(caller))
+
+        verifyNotRelayed()
+    }
+
+    @Test
+    fun `a call already running keeps signaling after a downgrade`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+        given(calls.findByCallId("c1")).willReturn(Call("c1", dmId, caller, callee))
+
+        controller.signal(offer(), principal(caller))
+
+        verify(broker).convertAndSendToUser("2", "/queue/call", offer().copy(fromUserId = caller))
+    }
+
+    @Test
+    fun `a HANGUP is relayed on the FREE plan without looking up the plan`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+        given(calls.findByCallId("c1")).willReturn(null)
+
+        controller.signal(CallSignal(CallSignalType.HANGUP, "c1", toUserId = callee, channelId = dmId), principal(caller))
+
+        verify(workspaces, never()).findById(any())
+        verify(broker).convertAndSendToUser(eq("2"), eq("/queue/call"), any<Any>())
+    }
+
+    @Test
+    fun `a client can't send PREMIUM_REQUIRED itself`() {
+        controller.signal(CallSignal(CallSignalType.PREMIUM_REQUIRED, "c1", toUserId = callee, channelId = dmId), principal(caller))
+
+        verify(channels, never()).findById(any())
+        verifyNotRelayed()
+    }
+
+    private fun offer() = CallSignal(CallSignalType.OFFER, "c1", toUserId = callee, channelId = dmId)
+
+    private fun givenDm(kind: ChannelKind, from: Long, to: Long, plan: WorkspacePlan = WorkspacePlan.PREMIUM) {
         given(channels.findById(dmId)).willReturn(Optional.of(channel(kind)))
         given(channelMembers.existsByChannelIdAndUserId(dmId, from)).willReturn(true)
         given(channelMembers.existsByChannelIdAndUserId(dmId, to)).willReturn(true)
+        // Lenient: REJECT and HANGUP never look at the plan.
+        lenient().whenever(workspaces.findById(1L))
+            .thenReturn(Optional.of(Workspace(name = "W", slug = "w", ownerId = caller, plan = plan)))
     }
 
     private fun givenSaveReturnsArgument() {

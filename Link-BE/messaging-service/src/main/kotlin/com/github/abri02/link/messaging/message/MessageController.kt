@@ -1,5 +1,7 @@
 package com.github.abri02.link.messaging.message
 
+import com.github.abri02.link.messaging.access.FREE_HISTORY_DAYS
+import com.github.abri02.link.messaging.access.PlanLimitException
 import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.channel.ChannelMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
@@ -156,20 +158,21 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        access.requireChannelMember(channelId, userId)
+        val channel = access.requireChannelMember(channelId, userId)
+        val since = access.historyCutoff(channel.workspaceId)
 
         val pageSize = limit.coerceIn(1, 100)
         val page = PageRequest.of(0, pageSize)
 
         val result = when {
             !q.isNullOrBlank() ->
-                messages.findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(
-                    channelId, q.trim(), page
+                messages.findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(
+                    channelId, q.trim(), since, page
                 )
             before != null ->
-                messages.findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, before, page)
+                messages.findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(channelId, before, since, page)
             else ->
-                messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(channelId, page)
+                messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(channelId, since, page)
         }
 
         val ordered = result.reversed()
@@ -193,11 +196,14 @@ class MessageController(
     ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        access.requireChannelMember(channelId, userId)
+        val channel = access.requireChannelMember(channelId, userId)
 
         val parent = messages.findById(messageId).orElse(null)
         if (parent == null || parent.channelId != channelId)
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse("Message not found"))
+
+        if (parent.createdAt.isBefore(access.historyCutoff(channel.workspaceId)))
+            throw PlanLimitException("HISTORY_LIMIT_REACHED", "The Free plan shows the last $FREE_HISTORY_DAYS days of messages")
 
         val replies = messages.findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(messageId)
         val reactionsByMessage = reactions.findByMessageIdIn(replies.map { it.id!! })
