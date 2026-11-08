@@ -3,6 +3,8 @@ import { X, MessageSquare } from "lucide-react";
 import { useRef, useEffect } from "react";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
+import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
+import { isPlanLimitError } from "@/util/apiClient";
 import { useThreadMessages } from "../hooks/useThreadMessages";
 import { useThreadSocket } from "../hooks/useThreadSocket";
 import { MessageRow } from "./MessageRow";
@@ -17,7 +19,7 @@ export function ThreadDrawer() {
 
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
   const { data: channelMessages } = useMessages(selectedChannelId);
-  const { data: replies, isLoading } = useThreadMessages(selectedChannelId, threadMessageId);
+  const { data: replies, isLoading, error } = useThreadMessages(selectedChannelId, threadMessageId);
   useThreadSocket(threadMessageId);
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,12 @@ export function ThreadDrawer() {
             {isLoading && (
               <Box display="flex" justifyContent="center" pt="16px">
                 <Spinner size="sm" color="#6C63FF" />
+              </Box>
+            )}
+
+            {isPlanLimitError(error) && (
+              <Box px="16px" pt="16px">
+                <UpsellNotice workspaceId={selectedWorkspaceId} message={error.message} />
               </Box>
             )}
 

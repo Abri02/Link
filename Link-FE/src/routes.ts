@@ -26,6 +26,27 @@ const routes: RouteConfig[] = [
     ),
   },
   {
+    path: "/pricing",
+    component: lazy(() =>
+      import("./feature/billing/pages/PricingPage").then((m) => ({ default: m.PricingPage }))
+    ),
+    protected: true,
+  },
+  {
+    path: "/billing/success",
+    component: lazy(() =>
+      import("./feature/billing/pages/BillingSuccessPage").then((m) => ({ default: m.BillingSuccessPage }))
+    ),
+    protected: true,
+  },
+  {
+    path: "/billing/cancel",
+    component: lazy(() =>
+      import("./feature/billing/pages/BillingCancelPage").then((m) => ({ default: m.BillingCancelPage }))
+    ),
+    protected: true,
+  },
+  {
     path: "/",
     component: lazy(() =>
       import("./feature/workspace/pages/WorkspacePage").then((m) => ({ default: m.WorkspacePage }))

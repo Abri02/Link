@@ -5,6 +5,9 @@ import { useSendMessage } from "../hooks/useSendMessage";
 import { uploadAttachment, type AttachmentResponse } from "../api/message.api";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { activeMentionQuery } from "../mentions";
+import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
+import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
+import { isPlanLimitError } from "@/util/apiClient";
 
 const MAX_SUGGESTIONS = 6;
 
@@ -22,6 +25,8 @@ export function MessageComposer({ channelId, channelName, parentMessageId, place
   const [body, setBody] = useState("");
   const [attachment, setAttachment] = useState<AttachmentResponse | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<unknown>(null);
+  const workspaceId = useWorkspaceStore((s) => s.selectedWorkspaceId);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { mutate: send, isPending } = useSendMessage(channelId);
@@ -108,11 +113,12 @@ export function MessageComposer({ channelId, channelName, parentMessageId, place
     if (!file) return;
     e.target.value = "";
     setUploading(true);
+    setUploadError(null);
     try {
       const result = await uploadAttachment(file, channelId);
       setAttachment(result);
-    } catch {
-      // upload failed silently — could add a toast here
+    } catch (error) {
+      setUploadError(error);
     } finally {
       setUploading(false);
     }
@@ -156,6 +162,17 @@ export function MessageComposer({ channelId, channelName, parentMessageId, place
               @{m.username}
             </Box>
           ))}
+        </Box>
+      )}
+      {uploadError != null && (
+        <Box pb="6px">
+          {isPlanLimitError(uploadError) ? (
+            <UpsellNotice workspaceId={workspaceId} message={uploadError.message} />
+          ) : (
+            <Text color="#FF6B6B" fontSize="12px" role="alert">
+              {uploadError instanceof Error ? uploadError.message : "Upload failed"}
+            </Text>
+          )}
         </Box>
       )}
       {attachment && (

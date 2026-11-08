@@ -1,5 +1,7 @@
 import { Box, Input, Button, Field, NativeSelect } from "@chakra-ui/react";
 import { useState } from "react";
+import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
+import { isPlanLimitError } from "@/util/apiClient";
 import { useInviteMember } from "../hooks/useInviteMember";
 import type { InvitableRole } from "../api/workspace.types";
 
@@ -22,7 +24,7 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
   return (
     <Box as="form" onSubmit={handleSubmit} display="flex" flexDirection="column" gap="16px">
       {/* ErrorText only renders while the field is invalid. */}
-      <Field.Root invalid={!!error}>
+      <Field.Root invalid={!!error && !isPlanLimitError(error)}>
         <Field.Label color="rgba(244,244,246,0.7)" fontSize="13px">
           Username or email
         </Field.Label>
@@ -37,12 +39,13 @@ export function InviteMemberDialog({ workspaceId, onClose }: Props) {
           _focus={{ borderColor: "#6C63FF", boxShadow: "none" }}
           autoFocus
         />
-        {error && (
+        {error && !isPlanLimitError(error) && (
           <Field.ErrorText color="#FF6B6B" fontSize="12px">
             {error.message}
           </Field.ErrorText>
         )}
       </Field.Root>
+      {isPlanLimitError(error) && <UpsellNotice workspaceId={workspaceId} message={error.message} />}
 
       <Field.Root>
         <Field.Label color="rgba(244,244,246,0.7)" fontSize="13px">
