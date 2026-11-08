@@ -1,11 +1,11 @@
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/fraunces";
 
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
-  font-family: 'Inter Variable', sans-serif;
 }
 
 @keyframes link-fade-in {
