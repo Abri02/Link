@@ -1,0 +1,78 @@
+/* Adding a theme means adding one block here. Everything else derives from it. */
+
+[data-theme="paper"] {
+  color-scheme: light;
+  --link-canvas: #f7f3ea;
+  --link-panel: #fffdf8;
+  --link-text: #24211c;
+  --link-muted: #6b6459;
+  --link-accent: #b8452a;
+  --link-on-accent: #ffffff;
+  --link-danger: #b3261e;
+  --link-sidebar: #2f3b35;
+  --link-sidebar-text: #f3efe5;
+  --link-sidebar-muted: #b9c4bb;
+}
+
+[data-theme="harbor"] {
+  color-scheme: light;
+  --link-canvas: #eef3f6;
+  --link-panel: #ffffff;
+  --link-text: #17242d;
+  --link-muted: #566875;
+  --link-accent: #0f766e;
+  --link-on-accent: #ffffff;
+  --link-danger: #b3261e;
+  --link-sidebar: #17405a;
+  --link-sidebar-text: #f0f6fa;
+  --link-sidebar-muted: #a9c3d3;
+}
+
+[data-theme="graphite"] {
+  color-scheme: dark;
+  --link-canvas: #18191b;
+  --link-panel: #212225;
+  --link-text: #ededea;
+  --link-muted: #a3a39d;
+  --link-accent: #e9a23b;
+  --link-on-accent: #1b1305;
+  --link-danger: #f27a6e;
+  --link-sidebar: #111214;
+  --link-sidebar-text: #ededea;
+  --link-sidebar-muted: #9c9d98;
+}
+
+[data-theme="forest"] {
+  color-scheme: dark;
+  --link-canvas: #14211c;
+  --link-panel: #1b2c25;
+  --link-text: #e8f0e9;
+  --link-muted: #9fb3a6;
+  --link-accent: #7bc99a;
+  --link-on-accent: #0d1f15;
+  --link-danger: #f28b7d;
+  --link-sidebar: #0e1814;
+  --link-sidebar-text: #e8f0e9;
+  --link-sidebar-muted: #94aa9c;
+}
+
+/* data-theme sits on <html>, so these resolve against the active theme's values. */
+:root {
+  --link-bg-subtle: color-mix(in srgb, var(--link-text) 4%, var(--link-canvas));
+  --link-bg-muted: color-mix(in srgb, var(--link-text) 8%, var(--link-canvas));
+  --link-border: color-mix(in srgb, var(--link-text) 14%, var(--link-panel));
+  --link-border-emphasized: color-mix(in srgb, var(--link-text) 26%, var(--link-panel));
+
+  --link-accent-emphasized: color-mix(in srgb, var(--link-accent) 85%, var(--link-text));
+  --link-accent-muted: color-mix(in srgb, var(--link-accent) 24%, var(--link-panel));
+  --link-accent-subtle: color-mix(in srgb, var(--link-accent) 12%, var(--link-panel));
+
+  --link-sidebar-hover: color-mix(in srgb, var(--link-sidebar-text) 8%, var(--link-sidebar));
+  --link-sidebar-active: color-mix(in srgb, var(--link-sidebar-text) 16%, var(--link-sidebar));
+
+  --link-online: #22a35a;
+  --link-offline: var(--link-sidebar-muted);
+  --link-mention-bg: color-mix(in srgb, var(--link-accent) 18%, var(--link-panel));
+  --link-mention-fg: var(--link-text);
+  --link-overlay: rgb(0 0 0 / 0.6);
+}
