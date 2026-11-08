@@ -113,6 +113,26 @@ services:
       retries: 12
       start_period: 90s
 
+  payment-service:
+    build:
+      context: ../Link-BE
+      dockerfile: Dockerfile
+      args:
+        SERVICE: payment-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/link
+      SPRING_DATASOURCE_USERNAME: link
+      SPRING_DATASOURCE_PASSWORD: link
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8085'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
   gateway:
     build:
       context: ../Link-BE
@@ -131,6 +151,8 @@ services:
       messaging-service:
         condition: service_healthy
       file-service:
+        condition: service_healthy
+      payment-service:
         condition: service_healthy
 
 volumes:

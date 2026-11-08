@@ -4,4 +4,4 @@ plugins {
 
 rootProject.name = "Link"
 
-include("shared-jwt", "auth-service", "user-service", "messaging-service", "gateway", "file-service")
+include("shared-jwt", "auth-service", "user-service", "messaging-service", "gateway", "file-service", "payment-service")

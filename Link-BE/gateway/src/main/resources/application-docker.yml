@@ -23,6 +23,13 @@ spring:
                 - Path=/api/attachments,/api/attachments/**
               filters:
                 - StripPrefix=1
+            # Payment service - must be before the messaging catch-all
+            - id: payments
+              uri: http://payment-service:8085
+              predicates:
+                - Path=/api/payments/**
+              filters:
+                - StripPrefix=1
             - id: messaging
               uri: http://messaging-service:8083
               predicates:
