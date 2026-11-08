@@ -1,4 +1,5 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
+import { buttonRecipe, dialogRecipe, inputRecipe, menuRecipe } from "./recipes";
 import { textStyles } from "./text-styles";
 
 const link = (name: string) => ({ value: `var(--link-${name})` });
@@ -9,6 +10,8 @@ const config = defineConfig({
   },
   theme: {
     textStyles,
+    recipes: { button: buttonRecipe, input: inputRecipe },
+    slotRecipes: { dialog: dialogRecipe, menu: menuRecipe },
     tokens: {
       fonts: {
         heading: { value: "'Figtree Variable', sans-serif" },
