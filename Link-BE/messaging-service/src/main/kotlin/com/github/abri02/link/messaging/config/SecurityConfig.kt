@@ -18,6 +18,8 @@ class SecurityConfig {
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth.requestMatchers("/ws/**").permitAll()
+                // No user JWT on service calls. The controller checks the service token.
+                auth.requestMatchers("/internal/**").permitAll()
                 auth.anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 -> oauth2.jwt { } }

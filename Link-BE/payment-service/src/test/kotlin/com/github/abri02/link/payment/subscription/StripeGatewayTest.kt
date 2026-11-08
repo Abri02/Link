@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 
 class StripeGatewayTest {
 
-    private val gateway = StripeGateway("sk_test", "price_1", "http://app")
+    private val gateway = StripeGateway("sk_test", "price_1", "whsec_1", "http://app")
 
     @Test
     fun `checkout params tag the session and subscription with the workspace id`() {
@@ -30,7 +30,7 @@ class StripeGatewayTest {
     @Test
     fun `configured is false when the secret key or price id is blank`() {
         assertThat(gateway.configured).isTrue()
-        assertThat(StripeGateway("", "price_1", "http://app").configured).isFalse()
-        assertThat(StripeGateway("sk_test", "", "http://app").configured).isFalse()
+        assertThat(StripeGateway("", "price_1", "whsec_1", "http://app").configured).isFalse()
+        assertThat(StripeGateway("sk_test", "", "whsec_1", "http://app").configured).isFalse()
     }
 }

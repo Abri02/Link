@@ -18,6 +18,8 @@ import reactor.core.publisher.Mono
  *
  * Public paths (signup, login, refresh, logout) bypass JWT validation because
  * they either establish or tear down the session rather than consuming it.
+ * The Stripe webhook is public too: payment-service verifies its signature.
+ * Service-to-service paths (/api/internal) are never reachable from outside.
  */
 @Component
 class JwtCookieFilter(private val jwtVerifier: JwtVerifier) : GlobalFilter, Ordered {
@@ -27,7 +29,8 @@ class JwtCookieFilter(private val jwtVerifier: JwtVerifier) : GlobalFilter, Orde
             "/api/auth/signup",
             "/api/auth/login",
             "/api/auth/refresh",
-            "/api/auth/logout"
+            "/api/auth/logout",
+            "/api/payments/webhook"
         )
     }
 
@@ -35,6 +38,11 @@ class JwtCookieFilter(private val jwtVerifier: JwtVerifier) : GlobalFilter, Orde
 
     override fun filter(exchange: ServerWebExchange, chain: GatewayFilterChain): Mono<Void> {
         val path = exchange.request.uri.path
+
+        if (path == "/api/internal" || path.startsWith("/api/internal/")) {
+            exchange.response.statusCode = HttpStatus.NOT_FOUND
+            return exchange.response.setComplete()
+        }
 
         // CorsWebFilter at HIGHEST_PRECEDENCE handles preflights, but passing OPTIONS
         // through here too ensures nothing blocks the preflight response mid-chain.
