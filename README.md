@@ -136,8 +136,9 @@ never reaches business code.
    `LINK_SESSION` cookie.
 5. `POST /api/auth/logout` clears both cookies and revokes the refresh token.
 
-> **CSRF**: with `SameSite=Lax` cookies and JSON-only API consumers we can skip
-> double-submit tokens in MVP, but add CSRF tokens before the payment flow ships.
+> **CSRF**: the gateway uses double-submit tokens. It sets a readable `XSRF-TOKEN`
+> cookie, and state-changing requests must echo it in `X-XSRF-TOKEN` (403 otherwise).
+> Signup, login and the Stripe webhook are exempt.
 
 ### 3.4 Repository layout
 
