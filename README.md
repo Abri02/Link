@@ -227,6 +227,10 @@ Hitting a limit returns `402`/`403` with an error code, and the UI shows an upgr
 (F7). Downgrading never deletes data: older messages and extra guests stay, they are only
 hidden or blocked until the workspace is Premium again.
 
+Billing needs the `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` environment variables on
+payment-service (Stripe test mode, never committed). Without them, the checkout and portal
+endpoints return `503`.
+
 ---
 
 ## 4. Roadmap
