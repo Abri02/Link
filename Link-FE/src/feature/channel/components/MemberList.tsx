@@ -1,5 +1,7 @@
-import { VStack, Box, HStack, Text, NativeSelect, IconButton } from "@chakra-ui/react";
+import { VStack, HStack, Text, NativeSelect } from "@chakra-ui/react";
 import { X } from "lucide-react";
+import { PresenceDot } from "@/components/ui/PresenceDot";
+import { SidebarAction } from "@/components/ui/SidebarAction";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import type { MemberDetail, WorkspaceRole } from "@/feature/workspace/api/workspace.types";
 
@@ -22,55 +24,31 @@ export function MemberList({ members, onStartDm, onChangeRole, roleError, onRemo
   if (members.length === 0) return null;
 
   return (
-    <VStack gap="0" alignItems="stretch" py="8px">
-      <Text
-        color="rgba(244,244,246,0.3)"
-        fontSize="11px"
-        fontWeight="600"
-        letterSpacing="0.08em"
-        px="16px"
-        mb="2px"
-      >
-        MEMBERS — {members.length}
+    <VStack gap="0" alignItems="stretch" py="2">
+      <Text color="sidebar.muted" textStyle="caption" px="4" mb="1">
+        Members — {members.length}
       </Text>
       {roleError && (
-        <Text color="#FF6B6B" fontSize="12px" px="16px" mb="2px" role="alert">
+        <Text color="sidebar.fg" textStyle="caption" px="4" mb="1" role="alert">
           {roleError}
         </Text>
       )}
       {members.map((m) => {
         const online = onlineIds.has(m.userId);
         return (
-          <HStack
-            key={m.userId}
-            gap="4px"
-            mx="6px"
-            pr="4px"
-            borderRadius="6px"
-            _hover={{ bg: "rgba(255,255,255,0.04)" }}
-          >
+          <HStack key={m.userId} gap="1" mx="1.5" pr="1" borderRadius="l1" _hover={{ bg: "sidebar.hover" }}>
             <HStack
               as={onStartDm ? "button" : "div"}
               flex="1"
               minW="0"
-              gap="8px"
-              px="6px"
-              py="3px"
+              gap="2"
+              px="1.5"
+              py="1"
               onClick={() => onStartDm?.(m.userId)}
               cursor={onStartDm ? "pointer" : "default"}
             >
-              <Box
-                w="8px"
-                h="8px"
-                borderRadius="full"
-                flexShrink={0}
-                bg={online ? "#22C55E" : "rgba(244,244,246,0.15)"}
-              />
-              <Text
-                color={online ? "rgba(244,244,246,0.8)" : "rgba(244,244,246,0.4)"}
-                fontSize="13px"
-                truncate
-              >
+              <PresenceDot online={online} />
+              <Text color={online ? "sidebar.fg" : "sidebar.muted"} textStyle="label" truncate>
                 {m.username}
               </Text>
             </HStack>
@@ -81,16 +59,17 @@ export function MemberList({ members, onStartDm, onChangeRole, roleError, onRemo
                   value={m.role}
                   onChange={(e) => onChangeRole(m.userId, e.target.value as WorkspaceRole)}
                   bg="transparent"
-                  border="1px solid #2E2E50"
-                  color="rgba(244,244,246,0.6)"
-                  borderRadius="4px"
-                  fontSize="11px"
-                  h="20px"
+                  borderColor="sidebar.border"
+                  color="sidebar.muted"
+                  borderRadius="l1"
+                  textStyle="caption"
+                  h="5"
                   cursor="pointer"
-                  style={{ outline: "none" }}
+                  focusRingColor="sidebar.fg"
+                  css={{ "& option": { bg: "bg.panel", color: "fg" } }}
                 >
                   {ROLES.map((r) => (
-                    <option key={r} value={r} style={{ background: "#1C1C30" }}>
+                    <option key={r} value={r}>
                       {r.charAt(0) + r.slice(1).toLowerCase()}
                     </option>
                   ))}
@@ -98,19 +77,9 @@ export function MemberList({ members, onStartDm, onChangeRole, roleError, onRemo
               </NativeSelect.Root>
             )}
             {onRemove && canRemove?.(m) && (
-              <IconButton
-                onClick={() => onRemove(m)}
-                size="2xs"
-                minW="20px"
-                h="20px"
-                bg="transparent"
-                color="rgba(244,244,246,0.3)"
-                _hover={{ color: "#FF6B6B", bg: "transparent" }}
-                aria-label={`Remove ${m.username}`}
-                flexShrink={0}
-              >
+              <SidebarAction label={`Remove ${m.username}`} onClick={() => onRemove(m)} flexShrink={0}>
                 <X size={12} />
-              </IconButton>
+              </SidebarAction>
             )}
           </HStack>
         );

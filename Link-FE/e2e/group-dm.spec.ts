@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { API, addUserToWorkspace, setupTwoUsersInWorkspace, selectWorkspace, waitForSubscription } from "./helpers";
 
-const conversationsOf = (page: Page) => page.getByText("DIRECT MESSAGES", { exact: true }).locator("..");
+const conversationsOf = (page: Page) => page.getByText("Direct messages", { exact: true }).locator("..");
 
 /** Reloads so the page's conversation socket is subscribed before anyone acts. */
 async function reloadWithConversationSocket(page: Page, wsName: string) {

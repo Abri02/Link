@@ -69,7 +69,7 @@ test.describe("Guest permissions", () => {
     await expect(owner.getByRole("button", { name: "👍 1" })).toBeVisible();
 
     // Member names aren't clickable for the guest, and opening a DM through the API is refused.
-    await expect(guest.getByText("MEMBERS — 2")).toBeVisible();
+    await expect(guest.getByText("Members — 2")).toBeVisible();
     await expect(guest.getByRole("button", { name: ownerUser.username, exact: true })).toHaveCount(0);
     const ownerId = members.find((m: { username: string }) => m.username === ownerUser.username).userId;
     const dm = await guest.request.post(`${API}/workspaces/${wsId}/dms`, { data: { targetUserId: ownerId } });

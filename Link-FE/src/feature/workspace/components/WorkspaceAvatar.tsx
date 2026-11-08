@@ -1,4 +1,4 @@
-import { Box, Text } from "@chakra-ui/react";
+import { Center, Text } from "@chakra-ui/react";
 import { Tip } from "@/components/Tip";
 import type { Workspace } from "../api/workspace.types";
 
@@ -20,26 +20,24 @@ function initials(name: string) {
 export function WorkspaceAvatar({ workspace, isSelected, onClick }: Props) {
   return (
     <Tip label={workspace.name} placement="right">
-      <Box
+      <Center
         as="button"
         aria-label={workspace.name}
         onClick={onClick}
-        w="40px"
-        h="40px"
-        borderRadius={isSelected ? "12px" : "full"}
-        bg={isSelected ? "#6C63FF" : "#2E2E50"}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        transition="all 0.15s"
-        _hover={{ borderRadius: "12px", bg: isSelected ? "#6C63FF" : "#3A3A60" }}
-        outline="none"
+        w="10"
+        h="10"
+        borderRadius="l2"
+        bg={isSelected ? "brand.solid" : "sidebar.active"}
+        _hover={isSelected ? undefined : { bg: "sidebar.hover" }}
+        cursor="pointer"
+        focusVisibleRing="outside"
+        focusRingColor="sidebar.fg"
         flexShrink={0}
       >
-        <Text fontSize="13px" fontWeight="700" color="#F4F4F6" lineHeight="1">
+        <Text textStyle="label" fontWeight="600" color={isSelected ? "brand.contrast" : "sidebar.fg"}>
           {initials(workspace.name)}
         </Text>
-      </Box>
+      </Center>
     </Tip>
   );
 }

@@ -1,26 +1,15 @@
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Center, HStack, Text } from "@chakra-ui/react";
 import { useNotificationStore } from "../stores/notificationStore";
 
 const format = (n: number) => (n > 99 ? "99+" : String(n));
 
-function Badge({ bg, label, children }: { bg: string; label: string; children: string }) {
+function Badge({ bg, color, label, children }: { bg: string; color: string; label: string; children: string }) {
   return (
-    <Box
-      bg={bg}
-      borderRadius="full"
-      minW="18px"
-      h="18px"
-      px="5px"
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
-      flexShrink={0}
-      title={label}
-    >
-      <Text fontSize="11px" fontWeight="700" color="#F4F4F6" lineHeight="1">
+    <Center bg={bg} borderRadius="full" minW="4.5" h="4.5" px="1" flexShrink={0} title={label}>
+      <Text textStyle="caption" fontWeight="600" color={color}>
         {children}
       </Text>
-    </Box>
+    </Center>
   );
 }
 
@@ -31,14 +20,14 @@ export function CountBadges({ channelId }: { channelId: number }) {
   if (unread === 0 && mentions === 0) return null;
 
   return (
-    <HStack gap="4px" flexShrink={0}>
+    <HStack gap="1" flexShrink={0}>
       {mentions > 0 && (
-        <Badge bg="#EF4444" label={`${mentions} unread mention${mentions === 1 ? "" : "s"}`}>
+        <Badge bg="fg.error" color="bg.panel" label={`${mentions} unread mention${mentions === 1 ? "" : "s"}`}>
           {`@${format(mentions)}`}
         </Badge>
       )}
       {unread > 0 && (
-        <Badge bg="#6C63FF" label={`${unread} unread`}>
+        <Badge bg="brand.solid" color="brand.contrast" label={`${unread} unread`}>
           {format(unread)}
         </Badge>
       )}

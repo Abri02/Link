@@ -6,7 +6,7 @@ test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake
 
 /** Sidebar row of a conversation. A string matches the whole name (a 1-on-1 DM), a RegExp part of it. */
 const dmRow = (page: Page, name: string | RegExp) =>
-  page.getByText("DIRECT MESSAGES", { exact: true }).locator("..").getByRole("button", { name, exact: typeof name === "string" });
+  page.getByText("Direct messages", { exact: true }).locator("..").getByRole("button", { name, exact: typeof name === "string" });
 
 /** A clicks "Start call" until B's incoming-call dialog shows up (B's call socket may still be connecting). */
 async function ring(a: Page, b: Page) {

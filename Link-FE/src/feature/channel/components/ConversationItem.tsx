@@ -1,4 +1,6 @@
-import { HStack, Box, Text } from "@chakra-ui/react";
+import { Box, Center, Text } from "@chakra-ui/react";
+import { NavItem } from "@/components/ui/NavItem";
+import { PresenceDot } from "@/components/ui/PresenceDot";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
 import { CountBadges } from "@/feature/notification/components/CountBadges";
 import { useHasUnread } from "@/feature/notification/stores/notificationStore";
@@ -13,23 +15,21 @@ interface Props {
 
 function Avatar({ username, stacked }: { username: string; stacked?: boolean }) {
   return (
-    <Box
-      w="20px"
-      h="20px"
-      borderRadius="4px"
-      bg="#2E2E50"
-      border={stacked ? "1.5px solid #1A1A2E" : undefined}
-      display="flex"
-      alignItems="center"
-      justifyContent="center"
+    <Center
+      w="6"
+      h="6"
+      borderRadius="l1"
+      bg="sidebar.active"
+      borderWidth={stacked ? "1px" : undefined}
+      borderColor="sidebar.bg"
       position={stacked ? "absolute" : "relative"}
-      top={stacked ? "6px" : undefined}
-      left={stacked ? "8px" : undefined}
+      top={stacked ? "2" : undefined}
+      left={stacked ? "2" : undefined}
     >
-      <Text fontSize="9px" fontWeight="700" color="#6C63FF">
+      <Text textStyle="caption" fontWeight="600" color="sidebar.fg">
         {username.slice(0, 2).toUpperCase()}
       </Text>
-    </Box>
+    </Center>
   );
 }
 
@@ -41,43 +41,24 @@ export function ConversationItem({ conversation, isSelected, onClick }: Props) {
   const dmPartnerId = isGroup ? undefined : others[0]?.userId;
   const isOnline = usePresenceStore((s) => dmPartnerId != null && s.onlineIds.has(dmPartnerId));
   const unread = useHasUnread(conversation.id);
-  const name = conversationName(conversation, currentUserId);
 
   return (
-    <HStack
-      as="button"
+    <NavItem
       onClick={onClick}
-      w="full"
-      px="12px"
-      py="5px"
-      borderRadius="6px"
-      bg={isSelected ? "#2A2A48" : "transparent"}
-      color={isSelected ? "#F4F4F6" : "rgba(244,244,246,0.55)"}
-      _hover={{ bg: "#22223A", color: "#F4F4F6" }}
-      transition="all 0.1s"
-      gap="8px"
-      outline="none"
+      selected={isSelected}
+      unread={unread}
+      icon={
+        <Box position="relative" flexShrink={0} w={isGroup ? "8" : "6"} h={isGroup ? "8" : "6"} aria-hidden>
+          <Avatar username={others[0]?.username ?? "?"} />
+          {isGroup && others[1] && <Avatar username={others[1].username} stacked />}
+          {!isGroup && (
+            <PresenceDot online={isOnline} position="absolute" bottom="-1px" right="-1px" outline="1px solid" outlineColor="sidebar.bg" />
+          )}
+        </Box>
+      }
+      trailing={!isSelected && <CountBadges channelId={conversation.id} />}
     >
-      <Box position="relative" flexShrink={0} w={isGroup ? "28px" : "20px"} h={isGroup ? "26px" : "20px"} aria-hidden>
-        <Avatar username={others[0]?.username ?? "?"} />
-        {isGroup && others[1] && <Avatar username={others[1].username} stacked />}
-        {!isGroup && (
-          <Box
-            position="absolute"
-            bottom="-1px"
-            right="-1px"
-            w="7px"
-            h="7px"
-            borderRadius="full"
-            bg={isOnline ? "#22C55E" : "rgba(244,244,246,0.15)"}
-            border="1.5px solid #1A1A2E"
-          />
-        )}
-      </Box>
-      <Text fontSize="14px" fontWeight={isSelected || unread ? "600" : "400"} truncate flex="1" textAlign="left">
-        {name}
-      </Text>
-      {!isSelected && <CountBadges channelId={conversation.id} />}
-    </HStack>
+      {conversationName(conversation, currentUserId)}
+    </NavItem>
   );
 }

@@ -50,7 +50,7 @@ test.describe("Remove member / leave workspace", () => {
     await owner.getByRole("button", { name: `Remove ${memberUser.username}` }).click();
     expect((await deleted).status()).toBe(204);
     await expect(owner.getByRole("button", { name: `Remove ${memberUser.username}` })).toHaveCount(0);
-    await expect(owner.getByText("MEMBERS — 1")).toBeVisible();
+    await expect(owner.getByText("Members — 1")).toBeVisible();
 
     // The removed user no longer sees the workspace and is locked out of its channels.
     await member.reload();
@@ -79,7 +79,7 @@ test.describe("Remove member / leave workspace", () => {
     // The owner's member list no longer contains them.
     await owner.reload();
     await selectWorkspace(owner, wsName);
-    await expect(owner.getByText("MEMBERS — 1")).toBeVisible();
+    await expect(owner.getByText("Members — 1")).toBeVisible();
     await expect(owner.getByText(memberUser.username)).toHaveCount(0);
 
     // The last owner is refused (409) and stays in the workspace.

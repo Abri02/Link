@@ -10,7 +10,7 @@ test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake
  */
 
 const dmRow = (page: Page, name: string) =>
-  page.getByText("DIRECT MESSAGES", { exact: true }).locator("..").getByRole("button", { name, exact: true });
+  page.getByText("Direct messages", { exact: true }).locator("..").getByRole("button", { name, exact: true });
 
 /** readyState, frame size and playback time of a `<video>` in the call window. */
 const videoState = (page: Page, label: string) =>

@@ -57,6 +57,7 @@ const config = defineConfig({
           muted: link("sidebar-muted"),
           hover: link("sidebar-hover"),
           active: link("sidebar-active"),
+          border: link("sidebar-border"),
         },
         status: {
           online: link("online"),

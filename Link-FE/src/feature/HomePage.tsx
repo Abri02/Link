@@ -10,23 +10,16 @@ export function HomePage() {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <Center minH="100vh" bg="#1C1C2E" flexDirection="column" gap="12px">
-      <Text color="#F4F4F6" fontSize="lg" fontWeight="600">
+    <Center minH="100vh" bg="bg" flexDirection="column" gap="3">
+      <Text color="fg" textStyle="title">
         {user?.username ?? ""}
       </Text>
       <Button
+        variant="outline"
         onClick={() => logout(undefined, { onSuccess: () => navigate("/login") })}
         loading={isPending}
-        height="40px"
-        px="20px"
-        background="transparent"
-        border="1px solid #2E2E50"
-        color="rgba(244,244,246,0.6)"
-        fontSize="13px"
-        borderRadius="8px"
-        _hover={{ borderColor: "#3B3350", color: "#F4F4F6" }}
       >
-        <LogOut size={14} style={{ marginRight: "8px" }} />
+        <LogOut size={14} />
         Log out
       </Button>
     </Center>

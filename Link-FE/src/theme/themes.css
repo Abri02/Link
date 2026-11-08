@@ -69,6 +69,7 @@
 
   --link-sidebar-hover: color-mix(in srgb, var(--link-sidebar-text) 8%, var(--link-sidebar));
   --link-sidebar-active: color-mix(in srgb, var(--link-sidebar-text) 16%, var(--link-sidebar));
+  --link-sidebar-border: color-mix(in srgb, var(--link-sidebar-text) 14%, var(--link-sidebar));
 
   --link-online: #22a35a;
   --link-offline: var(--link-sidebar-muted);

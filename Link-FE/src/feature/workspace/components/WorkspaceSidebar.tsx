@@ -1,7 +1,8 @@
-import { VStack, Box, Spinner, IconButton, Dialog, Portal } from "@chakra-ui/react";
+import { VStack, Box, Spinner, Dialog, Portal } from "@chakra-ui/react";
 import { Plus } from "lucide-react";
 import { useDisclosure } from "@chakra-ui/react";
 import { Tip } from "@/components/Tip";
+import { SidebarAction } from "@/components/ui/SidebarAction";
 import { useWorkspaces } from "../hooks/useWorkspaces";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import { WorkspaceAvatar } from "./WorkspaceAvatar";
@@ -15,16 +16,16 @@ export function WorkspaceSidebar() {
 
   return (
     <VStack
-      w="64px"
+      w="16"
       minH="100vh"
-      bg="#1C1C2E"
-      borderRight="1px solid #2A2A45"
-      pt="12px"
-      pb="12px"
-      gap="8px"
+      bg="sidebar.bg"
+      borderRightWidth="1px"
+      borderColor="sidebar.border"
+      py="3"
+      gap="2"
       alignItems="center"
     >
-      {isLoading && <Spinner size="sm" color="#6C63FF" />}
+      {isLoading && <Spinner size="sm" color="sidebar.muted" />}
 
       {workspaces?.map((ws) => (
         <WorkspaceAvatar
@@ -37,20 +38,17 @@ export function WorkspaceSidebar() {
 
       <Box mt="auto">
         <Tip label="Create workspace" placement="right">
-          <IconButton
+          <SidebarAction
+            label="Create workspace"
             onClick={onOpen}
-            size="sm"
-            w="40px"
-            h="40px"
-            borderRadius="full"
-            bg="transparent"
-            border="1px dashed #3A3A60"
-            color="rgba(244,244,246,0.4)"
-            _hover={{ borderColor: "#6C63FF", color: "#6C63FF" }}
-            aria-label="Create workspace"
+            w="10"
+            h="10"
+            borderRadius="l2"
+            borderWidth="1px"
+            borderColor="sidebar.border"
           >
             <Plus size={16} />
-          </IconButton>
+          </SidebarAction>
         </Tip>
       </Box>
 
