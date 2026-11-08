@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Box, HStack, IconButton, Text, VStack } from "@chakra-ui/react";
 import { Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
 import { Tip } from "@/components/Tip";
+import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
+import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import type { CallEndReason } from "../api/call.types";
 import { useCallStore } from "../stores/callStore";
 import { usePeerName } from "../hooks/usePeerName";
@@ -64,6 +66,7 @@ function ActiveCallWindow() {
   const screenStream = useCallStore((s) => s.screenStream);
   const endReason = useCallStore((s) => s.endReason);
   const controls = useCallStore((s) => s.controls);
+  const workspaceId = useWorkspaceStore((s) => s.selectedWorkspaceId);
   const peerName = usePeerName(channelId, peerUserId) ?? "Unknown user";
   const [micOff, setMicOff] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
@@ -124,6 +127,12 @@ function ActiveCallWindow() {
           </Box>
         )}
       </Box>
+
+      {endReason === "premium-required" && (
+        <Box w="full" px="14px" pt="10px">
+          <UpsellNotice workspaceId={workspaceId} message="Upgrade this workspace to make video calls." />
+        </Box>
+      )}
 
       <HStack w="full" px="14px" py="10px" gap="8px">
         <Text flex="1" color="#F4F4F6" fontSize="13px" fontWeight="600" truncate data-testid="call-status">

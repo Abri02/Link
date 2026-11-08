@@ -1,4 +1,4 @@
-import { apiClient, csrfHeaders } from "@/util/apiClient";
+import { apiClient, csrfHeaders, toApiError } from "@/util/apiClient";
 import { API_URL } from "@/util/constants";
 import type { Message, SendMessageRequest } from "./message.types";
 
@@ -23,7 +23,7 @@ export const uploadAttachment = async (file: File, channelId: number): Promise<A
     headers: csrfHeaders(),
     body: form,
   });
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  if (!res.ok) throw await toApiError(res);
   return res.json();
 };
 

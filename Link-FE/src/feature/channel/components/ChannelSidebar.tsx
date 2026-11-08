@@ -1,7 +1,10 @@
 import { VStack, Box, HStack, Text, IconButton, Dialog, Portal } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
-import { UserPlus, LogOut, Plus } from "lucide-react";
+import { UserPlus, LogOut, Plus, CreditCard } from "lucide-react";
 import { Tip } from "@/components/Tip";
+import { BillingDialog } from "@/feature/billing/components/BillingDialog";
+import { PremiumBadge } from "@/feature/billing/components/PremiumBadge";
+import { useSubscription } from "@/feature/billing/hooks/useSubscription";
 import { InviteMemberDialog } from "@/feature/workspace/components/InviteMemberDialog";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useConversations } from "@/feature/channel/hooks/useConversations";
@@ -42,6 +45,8 @@ export function ChannelSidebar() {
   const { open: inviteOpen, onOpen: onInviteOpen, onClose: onInviteClose } = useDisclosure();
   const { open: browseOpen, onOpen: onBrowseOpen, onClose: onBrowseClose } = useDisclosure();
   const { open: newMessageOpen, onOpen: onNewMessageOpen, onClose: onNewMessageClose } = useDisclosure();
+  const { open: billingOpen, onOpen: onBillingOpen, onClose: onBillingClose } = useDisclosure();
+  const { data: subscription } = useSubscription(selectedWorkspaceId);
   const role = useMyWorkspaceRole(selectedWorkspaceId);
   const canCreate = role === "OWNER" || role === "ADMIN";
   const changeRole = useChangeRole(selectedWorkspaceId ?? 0);
@@ -67,10 +72,27 @@ export function ChannelSidebar() {
   return (
     <VStack {...SIDEBAR_STYLES} alignItems="stretch" gap="0">
       <HStack px="16px" py="14px" borderBottom="1px solid #2A2A45" justify="space-between">
-        <Text color="#F4F4F6" fontWeight="600" fontSize="15px" truncate>
-          {workspace?.name ?? ""}
-        </Text>
+        <HStack gap="6px" minW="0">
+          <Text color="#F4F4F6" fontWeight="600" fontSize="15px" truncate>
+            {workspace?.name ?? ""}
+          </Text>
+          {subscription?.plan === "PREMIUM" && <PremiumBadge />}
+        </HStack>
         <HStack gap="2px" flexShrink={0}>
+          {role === "OWNER" && (
+            <Tip label="Billing" placement="right">
+              <IconButton
+                onClick={onBillingOpen}
+                size="xs"
+                bg="transparent"
+                color="rgba(244,244,246,0.4)"
+                _hover={{ color: "#6C63FF", bg: "transparent" }}
+                aria-label="Billing"
+              >
+                <CreditCard size={14} />
+              </IconButton>
+            </Tip>
+          )}
           {canCreate && (
             <Tip label="Invite member" placement="right">
               <IconButton
@@ -227,6 +249,20 @@ export function ChannelSidebar() {
                 New message
               </Dialog.Title>
               {newMessageOpen && <NewMessageDialog workspaceId={selectedWorkspaceId} onClose={onNewMessageClose} />}
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={billingOpen} onOpenChange={(e) => !e.open && onBillingClose()}>
+        <Portal>
+          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
+          <Dialog.Positioner>
+            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
+              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
+                Billing
+              </Dialog.Title>
+              {billingOpen && <BillingDialog workspaceId={selectedWorkspaceId} />}
             </Dialog.Content>
           </Dialog.Positioner>
         </Portal>

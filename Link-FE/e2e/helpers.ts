@@ -1,3 +1,4 @@
+import { createHmac, randomUUID } from "node:crypto";
 import { type Browser, type BrowserContext, type Page } from "@playwright/test";
 
 export const API = "http://localhost:8080/api";
@@ -136,6 +137,20 @@ export async function setWorkspacePlan(page: Page, wsId: number, plan: "FREE" | 
     data: { plan },
   });
   if (!res.ok()) throw new Error(`Setting the plan failed with ${res.status()}`);
+}
+
+/** Posts a Stripe event to the public webhook, signed the way Stripe signs it. */
+export async function sendStripeWebhook(page: Page, type: string, object: Record<string, unknown>) {
+  const created = Math.floor(Date.now() / 1000);
+  const id = `evt_e2e_${randomUUID()}`;
+  const payload = JSON.stringify({ id, type, created, data: { object } });
+  const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "whsec_e2e";
+  const signature = createHmac("sha256", secret).update(`${created}.${payload}`).digest("hex");
+  const res = await page.request.post(`${API}/payments/webhook`, {
+    headers: { "Stripe-Signature": `t=${created},v1=${signature}`, "Content-Type": "application/json" },
+    data: payload,
+  });
+  if (!res.ok()) throw new Error(`The Stripe webhook failed with ${res.status()}`);
 }
 
 /**
