@@ -231,6 +231,12 @@ Billing needs the `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` environment variable
 payment-service (Stripe test mode, never committed). Without them, the checkout and portal
 endpoints return `503`.
 
+Stripe reports subscription changes to `POST /api/payments/webhook`, which needs
+`STRIPE_WEBHOOK_SECRET` (`503` without it). In development, get the secret from
+`stripe listen --forward-to localhost:8080/api/payments/webhook`. Set the same
+`INTERNAL_SERVICE_TOKEN` on payment-service and messaging-service so the plan can reach
+the workspace. Without it, Stripe keeps retrying the events.
+
 ---
 
 ## 4. Roadmap

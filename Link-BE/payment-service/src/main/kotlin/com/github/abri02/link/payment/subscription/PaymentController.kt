@@ -26,9 +26,6 @@ data class SubscriptionResponse(
     val currentPeriodEnd: Instant?
 )
 
-/** Stripe statuses that grant Premium. */
-private val PREMIUM_STATUSES = setOf("active", "trialing")
-
 /** Stripe statuses where a subscription still exists, so a new Checkout would double-bill. */
 private val OPEN_STATUSES = PREMIUM_STATUSES + setOf("past_due", "unpaid")
 
@@ -81,9 +78,8 @@ class PaymentController(
             is WorkspaceMembership.Member -> Unit
         }
         val current = subscriptions.findById(workspaceId).orElse(null)
-        val plan = if (current != null && current.status in PREMIUM_STATUSES) "PREMIUM" else "FREE"
         return ResponseEntity.ok(
-            SubscriptionResponse(workspaceId, plan, current?.status, current?.currentPeriodEnd)
+            SubscriptionResponse(workspaceId, current?.plan ?: "FREE", current?.status, current?.currentPeriodEnd)
         )
     }
 

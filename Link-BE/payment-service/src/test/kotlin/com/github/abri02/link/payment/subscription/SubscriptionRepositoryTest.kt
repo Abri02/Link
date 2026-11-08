@@ -36,6 +36,14 @@ class SubscriptionRepositoryTest : PostgresIntegrationTest() {
     }
 
     @Test
+    fun `finds a subscription by its Stripe subscription id`() {
+        subscriptions.save(Subscription(workspaceId = 4L, stripeSubscriptionId = "sub_find", status = "active"))
+
+        assertThat(subscriptions.findByStripeSubscriptionId("sub_find")?.workspaceId).isEqualTo(4L)
+        assertThat(subscriptions.findByStripeSubscriptionId("sub_none")).isNull()
+    }
+
+    @Test
     fun `rejects a Stripe subscription id already used by another workspace`() {
         subscriptions.save(Subscription(workspaceId = 2L, stripeSubscriptionId = "sub_dup", status = "active"))
 

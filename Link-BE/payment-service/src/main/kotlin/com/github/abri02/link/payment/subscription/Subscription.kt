@@ -6,6 +6,9 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.Instant
 
+/** Stripe statuses that grant Premium. */
+val PREMIUM_STATUSES = setOf("active", "trialing")
+
 /** One subscription per workspace. [status] holds Stripe's status string as received. */
 @Entity
 @Table(name = "subscription", schema = "payments")
@@ -24,5 +27,11 @@ class Subscription(
     var status: String,
 
     @Column
-    var currentPeriodEnd: Instant? = null
-)
+    var currentPeriodEnd: Instant? = null,
+
+    /** Creation time of the last applied Stripe event, to drop events that arrive out of order. */
+    @Column
+    var lastEventAt: Instant? = null
+) {
+    val plan: String get() = if (status in PREMIUM_STATUSES) "PREMIUM" else "FREE"
+}
