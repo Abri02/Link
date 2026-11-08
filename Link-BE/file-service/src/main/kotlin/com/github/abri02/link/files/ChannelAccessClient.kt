@@ -17,6 +17,16 @@ class ChannelAccessClient(private val rest: RestClient) {
             .uri("/channels/{channelId}/membership", channelId)
             .header(HttpHeaders.AUTHORIZATION, "Bearer $bearerToken")
             .exchange { _, res -> res.statusCode.is2xxSuccessful }
+
+    /** The plan of the channel's workspace, or null if the caller isn't a member of the channel. */
+    fun planIfMember(channelId: Long, bearerToken: String): String? =
+        rest.get()
+            .uri("/channels/{channelId}/membership", channelId)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer $bearerToken")
+            .exchange<String?> { _, res ->
+                if (res.statusCode.is2xxSuccessful) res.bodyTo(Map::class.java)?.get("plan") as? String ?: "FREE"
+                else null
+            }
 }
 
 @Configuration

@@ -223,9 +223,13 @@ that workspace gets Premium. The plan lives in `workspace.plan` (`FREE` | `PREMI
 | Guests per workspace | max 3 | unlimited | F5 |
 | Message history | last 90 days | full | F5 |
 
-Hitting a limit returns `402`/`403` with an error code, and the UI shows an upgrade prompt
-(F7). Downgrading never deletes data: older messages and extra guests stay, they are only
-hidden or blocked until the workspace is Premium again.
+Hitting a limit returns `402` with `{ message, code }` (`FILE_TOO_LARGE_FOR_PLAN`,
+`GUEST_LIMIT_REACHED`, `HISTORY_LIMIT_REACHED`), and the UI shows an upgrade prompt (F7). Files
+over 20 MB get `413` (`FILE_TOO_LARGE`) on every plan. A call on Free is refused with a
+`PREMIUM_REQUIRED` signal on `/user/queue/call`; a call already running can finish. On Free,
+messages older than 90 days are left out of the list and search, and their threads return `402`.
+Downgrading never deletes data: older messages come back when the workspace is Premium again,
+and guests over the limit keep their access, but no new ones can be added.
 
 Billing needs the `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` environment variables on
 payment-service (Stripe test mode, never committed). Without them, the checkout and portal

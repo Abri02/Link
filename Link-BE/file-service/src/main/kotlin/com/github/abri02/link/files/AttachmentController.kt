@@ -27,6 +27,13 @@ data class AttachmentResponse(
     val url: String
 )
 
+data class PlanLimitResponse(val message: String, val code: String)
+
+private const val MB = 1024L * 1024L
+private const val FREE_MAX_FILE_BYTES = 5 * MB
+// Matches spring.servlet.multipart.max-file-size, which rejects anything larger before this code runs.
+private const val PREMIUM_MAX_FILE_BYTES = 20 * MB
+
 @RestController
 @RequestMapping("/attachments")
 class AttachmentController(
@@ -41,11 +48,17 @@ class AttachmentController(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestParam("file") file: MultipartFile,
         @RequestParam("channelId") channelId: Long
-    ): ResponseEntity<AttachmentResponse> {
+    ): ResponseEntity<*> {
         val userId = jwt.subject.toLong()
 
-        if (!channelAccess.isMember(channelId, jwt.tokenValue))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+        val plan = channelAccess.planIfMember(channelId, jwt.tokenValue)
+            ?: return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Unit>()
+
+        val maxBytes = if (plan == "PREMIUM") PREMIUM_MAX_FILE_BYTES else FREE_MAX_FILE_BYTES
+        if (file.size > maxBytes)
+            return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(
+                PlanLimitResponse("This workspace's plan allows files up to ${maxBytes / MB} MB", "FILE_TOO_LARGE_FOR_PLAN")
+            )
 
         val ext = file.originalFilename?.substringAfterLast('.', "")?.let { if (it.isNotBlank()) ".$it" else "" } ?: ""
         val objectKey = "uploads/${UUID.randomUUID()}$ext"

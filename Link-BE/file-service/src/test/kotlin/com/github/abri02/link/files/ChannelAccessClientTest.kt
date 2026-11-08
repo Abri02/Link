@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.header
 import org.springframework.test.web.client.match.MockRestRequestMatchers.method
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
+import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestClient
 
 class ChannelAccessClientTest {
@@ -34,6 +36,23 @@ class ChannelAccessClientTest {
 
         assertThat(client.isMember(5L, "tok")).isTrue()
         server.verify()
+    }
+
+    @Test
+    fun `planIfMember returns the plan of the channel's workspace`() {
+        server.expect(requestTo("http://messaging/channels/5/membership"))
+            .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer tok"))
+            .andRespond(withSuccess("""{"plan":"PREMIUM"}""", MediaType.APPLICATION_JSON))
+
+        assertThat(client.planIfMember(5L, "tok")).isEqualTo("PREMIUM")
+    }
+
+    @Test
+    fun `planIfMember returns null when the caller is not a member`() {
+        server.expect(requestTo("http://messaging/channels/5/membership"))
+            .andRespond(withStatus(HttpStatus.FORBIDDEN))
+
+        assertThat(client.planIfMember(5L, "tok")).isNull()
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.github.abri02.link.messaging.support
 import com.github.abri02.link.messaging.access.AccessExceptionHandler
 import com.github.abri02.link.messaging.access.ForbiddenException
 import com.github.abri02.link.messaging.access.NotFoundException
+import com.github.abri02.link.messaging.access.PlanLimitException
 import org.springframework.http.ResponseEntity
 
 private val handler = AccessExceptionHandler()
@@ -18,4 +19,6 @@ fun respond(call: () -> ResponseEntity<*>): ResponseEntity<*> =
         handler.forbidden(e)
     } catch (e: NotFoundException) {
         handler.notFound(e)
+    } catch (e: PlanLimitException) {
+        handler.planLimit(e)
     }

@@ -14,6 +14,7 @@ const END_TEXT: Record<CallEndReason, string> = {
   "no-answer": "No answer",
   "media-error": "Camera or microphone unavailable",
   failed: "Connection failed",
+  "premium-required": "Video calls need a Premium workspace",
 };
 
 function StreamVideo({

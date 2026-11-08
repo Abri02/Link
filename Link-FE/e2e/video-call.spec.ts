@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { API, selectWorkspace, setupTwoUsersInWorkspace } from "./helpers";
+import { API, selectWorkspace, setWorkspacePlan, setupTwoUsersInWorkspace } from "./helpers";
 
 // Fake camera and microphone, and auto-accept the permission prompt.
 test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
@@ -49,6 +49,7 @@ async function connectedCall(browser: Browser, tag: string) {
   const members: { userId: number; username: string }[] =
     await (await a.request.get(`${API}/workspaces/${wsId}/members`)).json();
   const bId = members.find((m) => m.username === userB.username)!.userId;
+  await setWorkspacePlan(a, wsId, "PREMIUM");
   await a.request.post(`${API}/workspaces/${wsId}/dms`, { data: { userIds: [bId] } });
   for (const [page, other] of [[a, userB], [b, userA]] as const) {
     await page.reload();

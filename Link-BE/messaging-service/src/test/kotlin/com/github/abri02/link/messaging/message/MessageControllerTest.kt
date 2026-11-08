@@ -8,10 +8,14 @@ import com.github.abri02.link.messaging.workspace.MemberWithUsername
 import com.github.abri02.link.messaging.workspace.WorkspaceMember
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
 import com.github.abri02.link.messaging.workspace.WorkspaceRole
+import com.github.abri02.link.messaging.access.PlanLimitResponse
 import com.github.abri02.link.messaging.access.WorkspaceAccess
+import com.github.abri02.link.messaging.workspace.Workspace
+import com.github.abri02.link.messaging.workspace.WorkspacePlan
 import com.github.abri02.link.messaging.support.respond
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -19,6 +23,7 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.never
@@ -28,6 +33,8 @@ import org.springframework.data.domain.Pageable
 import org.springframework.http.HttpStatus
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.security.oauth2.jwt.Jwt
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -318,7 +325,7 @@ class MessageControllerTest {
     fun `list returns empty list when no messages exist`() {
         given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
         given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
-        given(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(any<Long>(), any<Pageable>()))
+        given(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(any<Long>(), any<Instant>(), any<Pageable>()))
             .willReturn(emptyList())
         given(reactions.findByMessageIdIn(emptyList())).willReturn(emptyList())
 
@@ -327,6 +334,84 @@ class MessageControllerTest {
         @Suppress("UNCHECKED_CAST")
         assertThat(res.body as List<MessageResponse>).isEmpty()
     }
+
+    // ── plan: message history ─────────────────────────────────────────
+
+    @Test
+    fun `list on the FREE plan only asks for the last 90 days`() {
+        givenMemberOfChannelOnPlan(WorkspacePlan.FREE)
+        val since = argumentCaptor<Instant>()
+        given(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(eq(1L), since.capture(), any<Pageable>()))
+            .willReturn(emptyList())
+
+        respond { controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = null) }
+
+        assertThat(since.firstValue)
+            .isCloseTo(Instant.now().minus(90, ChronoUnit.DAYS), within(1, ChronoUnit.MINUTES))
+    }
+
+    @Test
+    fun `list on the PREMIUM plan has no time limit`() {
+        givenMemberOfChannelOnPlan(WorkspacePlan.PREMIUM)
+        given(messages.findByChannelIdAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(eq(1L), eq(Instant.EPOCH), any<Pageable>()))
+            .willReturn(emptyList())
+
+        val res = respond { controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = null) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+    }
+
+    @Test
+    fun `search and paging on the FREE plan use the same 90 day limit`() {
+        givenMemberOfChannelOnPlan(WorkspacePlan.FREE)
+        val since = argumentCaptor<Instant>()
+        given(messages.findByChannelIdAndBodyContainingIgnoreCaseAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(eq(1L), eq("hi"), since.capture(), any<Pageable>()))
+            .willReturn(emptyList())
+        given(messages.findByChannelIdAndIdLessThanAndParentMessageIdIsNullAndDeletedAtIsNullAndCreatedAtAfterOrderByCreatedAtDesc(eq(1L), eq(9L), since.capture(), any<Pageable>()))
+            .willReturn(emptyList())
+
+        respond { controller.list(buildJwt(1L), 1L, before = null, limit = 50, q = "hi") }
+        respond { controller.list(buildJwt(1L), 1L, before = 9L, limit = 50, q = null) }
+
+        val cutoff = Instant.now().minus(90, ChronoUnit.DAYS)
+        assertThat(since.allValues).hasSize(2).allSatisfy {
+            assertThat(it).isCloseTo(cutoff, within(1, ChronoUnit.MINUTES))
+        }
+    }
+
+    @Test
+    fun `thread of a parent older than 90 days returns 402 on the FREE plan`() {
+        givenMemberOfChannelOnPlan(WorkspacePlan.FREE)
+        given(messages.findById(5L)).willReturn(Optional.of(oldMessage()))
+
+        val res = respond { controller.thread(buildJwt(1L), 1L, 5L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.PAYMENT_REQUIRED)
+        assertThat((res.body as PlanLimitResponse).code).isEqualTo("HISTORY_LIMIT_REACHED")
+        verify(messages, never()).findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(any())
+    }
+
+    @Test
+    fun `thread of a parent older than 90 days stays readable on the PREMIUM plan`() {
+        givenMemberOfChannelOnPlan(WorkspacePlan.PREMIUM)
+        given(messages.findById(5L)).willReturn(Optional.of(oldMessage()))
+        given(messages.findByParentMessageIdAndDeletedAtIsNullOrderByCreatedAtAsc(5L)).willReturn(emptyList())
+        given(reactions.findByMessageIdIn(emptyList())).willReturn(emptyList())
+
+        val res = respond { controller.thread(buildJwt(1L), 1L, 5L) }
+
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+    }
+
+    private fun givenMemberOfChannelOnPlan(plan: WorkspacePlan) {
+        given(channels.findById(1L)).willReturn(Optional.of(buildChannel(1L, 10L)))
+        given(channelMembers.existsByChannelIdAndUserId(1L, 1L)).willReturn(true)
+        given(workspaces.findById(10L)).willReturn(Optional.of(Workspace(name = "W", slug = "w", ownerId = 1L, plan = plan)))
+    }
+
+    private fun oldMessage() = Message(
+        channelId = 1L, authorId = 2L, body = "Old", createdAt = Instant.now().minus(91, ChronoUnit.DAYS)
+    ).also { Message::class.java.getDeclaredField("id").apply { isAccessible = true }.set(it, 5L) }
 
     // ── edit ──────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 /** Mirrors the backend `CallSignal` (messaging-service `call/CallSignalController.kt`). */
-export type CallSignalType = "INVITE" | "ACCEPT" | "REJECT" | "HANGUP" | "OFFER" | "ANSWER" | "ICE";
+export type CallSignalType = "INVITE" | "ACCEPT" | "REJECT" | "HANGUP" | "OFFER" | "ANSWER" | "ICE" | "PREMIUM_REQUIRED";
 
 export interface CallSignal {
   type: CallSignalType;
@@ -22,4 +22,5 @@ export type CallEndReason =
   | "declined"       // we rejected an incoming call
   | "no-answer"      // nobody answered within the timeout
   | "media-error"    // camera/microphone unavailable or denied
-  | "failed";        // the peer connection failed
+  | "failed"         // the peer connection failed
+  | "premium-required"; // the workspace is on the Free plan

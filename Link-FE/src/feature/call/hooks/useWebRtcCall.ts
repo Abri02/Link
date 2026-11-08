@@ -193,6 +193,9 @@ export function useWebRtcCall(userId: number | null) {
         case "HANGUP":
           end("remote-hangup");
           return;
+        case "PREMIUM_REQUIRED":
+          end("premium-required");
+          return;
       }
     };
 

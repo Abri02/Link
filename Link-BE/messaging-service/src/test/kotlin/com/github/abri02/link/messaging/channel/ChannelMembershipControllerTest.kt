@@ -2,7 +2,9 @@ package com.github.abri02.link.messaging.channel
 
 import com.github.abri02.link.messaging.access.WorkspaceAccess
 import com.github.abri02.link.messaging.support.respond
+import com.github.abri02.link.messaging.workspace.Workspace
 import com.github.abri02.link.messaging.workspace.WorkspaceMemberRepository
+import com.github.abri02.link.messaging.workspace.WorkspacePlan
 import com.github.abri02.link.messaging.workspace.WorkspaceRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -31,12 +33,16 @@ class ChannelMembershipControllerTest {
     }
 
     @Test
-    fun `check returns 204 when caller is a channel member`() {
+    fun `check returns 200 with the workspace plan when caller is a channel member`() {
         given(channels.findById(5L)).willReturn(Optional.of(Channel(workspaceId = 1L, name = "general", createdBy = 1L)))
         given(channelMembers.existsByChannelIdAndUserId(5L, 1L)).willReturn(true)
+        given(workspaces.findById(1L)).willReturn(
+            Optional.of(Workspace(name = "W", slug = "w", ownerId = 1L, plan = WorkspacePlan.PREMIUM))
+        )
 
         val res = respond { controller.check(buildJwt(1L), 5L) }
-        assertThat(res.statusCode).isEqualTo(HttpStatus.NO_CONTENT)
+        assertThat(res.statusCode).isEqualTo(HttpStatus.OK)
+        assertThat(res.body).isEqualTo(ChannelMembershipResponse(WorkspacePlan.PREMIUM))
     }
 
     @Test

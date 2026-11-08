@@ -127,6 +127,8 @@ class WorkspaceController(
         if (members.existsByWorkspaceIdAndUserId(id, req.userId))
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("User is already a member"))
 
+        if (req.role == WorkspaceRole.GUEST) access.requireGuestSlot(id)
+
         val newMember = members.save(
             WorkspaceMember(workspaceId = id, userId = req.userId, role = req.role)
         )
@@ -161,6 +163,8 @@ class WorkspaceController(
 
         if (members.existsByWorkspaceIdAndUserId(id, user.id))
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse("User is already a member"))
+
+        if (req.role == WorkspaceRole.GUEST) access.requireGuestSlot(id)
 
         val newMember = members.save(
             WorkspaceMember(workspaceId = id, userId = user.id, role = req.role)
@@ -206,6 +210,8 @@ class WorkspaceController(
             return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ErrorResponse("The last OWNER can't be demoted"))
         }
+
+        if (req.role == WorkspaceRole.GUEST && target.role != WorkspaceRole.GUEST) access.requireGuestSlot(id)
 
         target.role = req.role
         val saved = members.save(target)
