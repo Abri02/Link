@@ -1,124 +1,43 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Box, Button, Link, Text, VStack } from "@chakra-ui/react";
-import { Mail, Lock, AtSign, User, AlertCircle } from "lucide-react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Button, Link, Text, VStack } from "@chakra-ui/react";
+import { FormError } from "../../../components/ui/FormError";
+import { TextField } from "../../../components/ui/TextField";
 import { useSignup } from "../hooks/useSignup";
-import { LoginFormField } from "./LoginFormField";
+import { PasswordField } from "./PasswordField";
 
 export function RegisterForm() {
-  const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [fields, setFields] = useState({ displayName: "", username: "", email: "", password: "" });
   const { mutate: signup, isPending, error } = useSignup();
   const navigate = useNavigate();
 
+  const bind = (name: keyof typeof fields) => ({
+    value: fields[name],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setFields({ ...fields, [name]: e.target.value }),
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const { displayName, username, email, password } = fields;
     if (!email || !username || !password) return;
-    signup(
-      { email, username, password, displayName: displayName || undefined },
-      { onSuccess: () => navigate("/") },
-    );
+    signup({ email, username, password, displayName: displayName || undefined }, { onSuccess: () => navigate("/") });
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: "380px" }}>
-      <VStack gap="26px" align="stretch">
-        <Box>
-          <Text
-            fontSize="26px"
-            fontWeight="800"
-            color="#F4F4F6"
-            letterSpacing="-0.025em"
-            lineHeight="1.15"
-            mb="7px"
-          >
-            Create account
-          </Text>
-          <Text fontSize="13.5px" color="rgba(244,244,246,0.33)" letterSpacing="0.01em">
-            Join your team on Link
-          </Text>
-        </Box>
-
-        <VStack gap="13px">
-          <LoginFormField
-            label="Display name"
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Jane Smith"
-            icon={User}
-            autoComplete="name"
-          />
-          <LoginFormField
-            label="Username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="janesmith"
-            icon={AtSign}
-            autoComplete="username"
-          />
-          <LoginFormField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            icon={Mail}
-            autoComplete="email"
-          />
-          <LoginFormField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            icon={Lock}
-            autoComplete="new-password"
-          />
-        </VStack>
-
-        {error && (
-          <Box
-            bg="rgba(248,113,113,0.07)"
-            border="1px solid rgba(248,113,113,0.22)"
-            borderRadius="8px"
-            p="11px 14px"
-            display="flex"
-            alignItems="center"
-            gap="10px"
-          >
-            <AlertCircle size={14} color="#F87171" style={{ flexShrink: 0 }} />
-            <Text fontSize="13px" color="#F87171">
-              {error.message || "Something went wrong. Please try again."}
-            </Text>
-          </Box>
-        )}
-
-        <Button
-          type="submit"
-          loading={isPending}
-          width="100%"
-          height="46px"
-          background="#3B82F6"
-          color="white"
-          fontWeight="600"
-          fontSize="14px"
-          borderRadius="9px"
-          border="none"
-          letterSpacing="0.01em"
-          _hover={{ background: "#2563EB" }}
-          _active={{ background: "#1D4ED8" }}
-        >
-          Create account →
+    <form onSubmit={handleSubmit}>
+      <VStack gap="4" align="stretch">
+        <TextField label="Display name" {...bind("displayName")} placeholder="Jane Smith" autoComplete="name" />
+        <TextField label="Username" {...bind("username")} placeholder="janesmith" autoComplete="username" />
+        <TextField label="Email" type="email" {...bind("email")} placeholder="you@example.com" autoComplete="email" />
+        <PasswordField {...bind("password")} autoComplete="new-password" />
+        {error && <FormError>{error.message || "Something went wrong. Please try again."}</FormError>}
+        <Button type="submit" loading={isPending} w="full">
+          Create account
         </Button>
-
-        <Text fontSize="13px" color="rgba(244,244,246,0.28)" textAlign="center">
+        <Text textStyle="label" color="fg.muted" textAlign="center">
           Already have an account?{" "}
-          <Link href="/login" color="#3B82F6" fontWeight="600" _hover={{ color: "#60A5FA" }}>
-            Sign in
+          <Link asChild>
+            <RouterLink to="/login">Sign in</RouterLink>
           </Link>
         </Text>
       </VStack>
