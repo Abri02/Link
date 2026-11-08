@@ -31,6 +31,14 @@ spring:
               filters:
                 - StripPrefix=1
 
+            # Payment service — must be before the messaging catch-all
+            - id: payments
+              uri: http://localhost:8085
+              predicates:
+                - Path=/api/payments/**
+              filters:
+                - StripPrefix=1
+
             # Messaging service — catch-all for remaining /api/** paths
             - id: messaging
               uri: http://localhost:8083

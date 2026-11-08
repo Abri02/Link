@@ -76,7 +76,7 @@ jobs:
       # ── Backend ───────────────────────────────────────────────────────
       - name: Build backend (skip tests)
         working-directory: Link-BE
-        run: ./gradlew :auth-service:bootJar :user-service:bootJar :messaging-service:bootJar :file-service:bootJar :gateway:bootJar -x test --no-daemon
+        run: ./gradlew :auth-service:bootJar :user-service:bootJar :messaging-service:bootJar :file-service:bootJar :payment-service:bootJar :gateway:bootJar -x test --no-daemon
 
       - name: Start auth-service
         run: |
@@ -101,6 +101,12 @@ jobs:
           JAR=$(find Link-BE/file-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
           java -jar "$JAR" >> /tmp/file-service.log 2>&1 &
           echo $! > /tmp/file-service.pid
+
+      - name: Start payment-service
+        run: |
+          JAR=$(find Link-BE/payment-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
+          java -jar "$JAR" >> /tmp/payment-service.log 2>&1 &
+          echo $! > /tmp/payment-service.pid
 
       - name: Start gateway
         run: |
@@ -130,11 +136,13 @@ jobs:
           wait_for_port 8082 user-service    || { cat /tmp/user-service.log;    exit 1; }
           wait_for_port 8083 messaging-service || { cat /tmp/messaging-service.log; exit 1; }
           wait_for_port 8084 file-service    || { cat /tmp/file-service.log;    exit 1; }
+          wait_for_port 8085 payment-service || { cat /tmp/payment-service.log; exit 1; }
           wait_for_port 8080 gateway         || {
             echo "=== auth-service ===" && cat /tmp/auth-service.log || true
             echo "=== user-service ===" && cat /tmp/user-service.log || true
             echo "=== messaging-service ===" && cat /tmp/messaging-service.log || true
             echo "=== file-service ===" && cat /tmp/file-service.log || true
+            echo "=== payment-service ===" && cat /tmp/payment-service.log || true
             echo "=== gateway ===" && cat /tmp/gateway.log || true
             exit 1
           }
@@ -177,5 +185,6 @@ jobs:
             /tmp/user-service.log
             /tmp/messaging-service.log
             /tmp/file-service.log
+            /tmp/payment-service.log
             /tmp/gateway.log
           retention-days: 3
