@@ -81,6 +81,60 @@ test.describe("Auth smoke", () => {
     await expect(page).toHaveURL("/login");
   });
 
+  test("fields are labelled and a wrong password shows an alert", async ({ page }) => {
+    const user = uniqueUser("label");
+    await signUp(page, user.email, user.username);
+    await logOut(page);
+
+    await page.getByLabel("Email").fill(user.email);
+    await page.getByLabel("Password").fill("WrongPassword!");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page.getByRole("alert")).toContainText(/Invalid email or password/i);
+  });
+
+  test("user can sign in with only the keyboard", async ({ page }) => {
+    const user = uniqueUser("kbd");
+    await signUp(page, user.email, user.username);
+    await logOut(page);
+
+    await page.goto("/login");
+    await page.getByLabel("Email").waitFor();
+    await page.keyboard.press("Tab");
+    await expect(page.getByLabel("Email")).toBeFocused();
+    await page.keyboard.type(user.email);
+    await page.keyboard.press("Tab");
+    await expect(page.getByLabel("Password")).toBeFocused();
+    await page.keyboard.type(PASSWORD);
+    await page.keyboard.press("Enter");
+
+    await page.waitForURL("/");
+  });
+
+  test("password can be shown and hidden", async ({ page }) => {
+    await page.goto("/login");
+    const password = page.getByLabel("Password");
+    await expect(password).toHaveAttribute("type", "password");
+
+    await page.getByRole("button", { name: "Show password" }).click();
+    await expect(password).toHaveAttribute("type", "text");
+
+    await page.getByRole("button", { name: "Hide password" }).click();
+    await expect(password).toHaveAttribute("type", "password");
+  });
+
+  test("auth links navigate without reloading the page", async ({ page }) => {
+    await page.goto("/login");
+    await page.evaluate(() => { (window as unknown as { noReload: boolean }).noReload = true; });
+
+    await page.getByRole("link", { name: "Create one" }).click();
+    await expect(page).toHaveURL("/signup");
+    await page.getByRole("link", { name: "Sign in" }).click();
+    await expect(page).toHaveURL("/login");
+
+    expect(await page.evaluate(() => (window as unknown as { noReload?: boolean }).noReload)).toBe(true);
+  });
+
   test("unauthenticated user is redirected from / to /login", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL("/login");
