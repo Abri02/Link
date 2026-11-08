@@ -1,10 +1,16 @@
 import { API_URL } from "./constants";
 
+/** Double-submit CSRF header, built from the cookie the gateway sets. */
+export const csrfHeaders = (): Record<string, string> => {
+  const token = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)?.[1];
+  return token ? { 'X-XSRF-TOKEN': token } : {};
+};
+
 export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', ...csrfHeaders(), ...options.headers },
   });
 
   if (response.status === 401) {
