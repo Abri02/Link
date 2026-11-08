@@ -129,6 +129,15 @@ export async function setupTwoUsersInWorkspace(browser: Browser, tag: string): P
   };
 }
 
+/** Sets the plan directly on messaging-service (the gateway refuses /api/internal). */
+export async function setWorkspacePlan(page: Page, wsId: number, plan: "FREE" | "PREMIUM") {
+  const res = await page.request.patch(`http://localhost:8083/internal/workspaces/${wsId}/plan`, {
+    headers: { "X-Internal-Token": process.env.INTERNAL_SERVICE_TOKEN ?? "e2e-internal-token" },
+    data: { plan },
+  });
+  if (!res.ok()) throw new Error(`Setting the plan failed with ${res.status()}`);
+}
+
 /**
  * Signs up one more user in a new browser context, has `owner` invite them as a MEMBER and opens
  * the workspace for them. Close the returned context yourself.

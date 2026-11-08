@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { API, addUserToWorkspace, setupTwoUsersInWorkspace } from "./helpers";
+import { API, addUserToWorkspace, setWorkspacePlan, setupTwoUsersInWorkspace } from "./helpers";
 
 const WS = "ws://localhost:8080/api/ws";
 
@@ -45,6 +45,7 @@ const received = (page: Page) =>
 test.describe("Call signaling", () => {
   test("signals are relayed only between the two members of a 1-on-1 DM", async ({ browser }) => {
     const { a, b, userA, userB, wsId, wsName, close } = await setupTwoUsersInWorkspace(browser, "callsig");
+    await setWorkspacePlan(a, wsId, "PREMIUM");
     const c = await addUserToWorkspace(browser, a, wsId, wsName, "callsigc");
 
     const members: { userId: number; username: string }[] =
@@ -91,6 +92,26 @@ test.describe("Call signaling", () => {
     expect((await received(a)).every((s) => s.fromUserId === bId)).toBe(true);
 
     await c.ctx.close();
+    await close();
+  });
+
+  test("on the Free plan a call is refused with PREMIUM_REQUIRED and B never rings", async ({ browser }) => {
+    const { a, b, userA, userB, wsId, close } = await setupTwoUsersInWorkspace(browser, "callfree");
+    const members: { userId: number; username: string }[] =
+      await (await a.request.get(`${API}/workspaces/${wsId}/members`)).json();
+    const idOf = (username: string) => members.find((m) => m.username === username)!.userId;
+    const [aId, bId] = [idOf(userA.username), idOf(userB.username)];
+    const dm = await (await a.request.post(`${API}/workspaces/${wsId}/dms`, { data: { userIds: [bId] } })).json();
+    for (const page of [a, b]) await connectCallQueue(page);
+
+    const invite = { type: "INVITE", callId: `free-${Date.now()}`, toUserId: bId, channelId: dm.id };
+    await expect(async () => {
+      await sendSignal(a, invite);
+      expect((await received(a)).length).toBeGreaterThan(0);
+    }).toPass({ timeout: 15_000 });
+
+    expect((await received(a))[0]).toMatchObject({ type: "PREMIUM_REQUIRED", callId: invite.callId, toUserId: aId });
+    expect(await received(b)).toHaveLength(0);
     await close();
   });
 });

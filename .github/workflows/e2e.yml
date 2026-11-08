@@ -93,7 +93,7 @@ jobs:
       - name: Start messaging-service
         run: |
           JAR=$(find Link-BE/messaging-service/build/libs -name "*.jar" ! -name "*-plain.jar" | head -1)
-          java -jar "$JAR" >> /tmp/messaging-service.log 2>&1 &
+          INTERNAL_SERVICE_TOKEN=e2e-internal-token java -jar "$JAR" >> /tmp/messaging-service.log 2>&1 &
           echo $! > /tmp/messaging-service.pid
 
       - name: Start file-service

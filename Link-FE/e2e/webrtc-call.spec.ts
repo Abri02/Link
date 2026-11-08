@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { API, setupTwoUsersInWorkspace } from "./helpers";
+import { API, setWorkspacePlan, setupTwoUsersInWorkspace } from "./helpers";
 
 // Fake camera and microphone, and auto-accept the permission prompt.
 test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
@@ -58,6 +58,7 @@ const localTracksStopped = (page: Page) =>
 async function setupDm(browser: Parameters<typeof setupTwoUsersInWorkspace>[0], tag: string) {
   const setup = await setupTwoUsersInWorkspace(browser, tag);
   const { a, wsId, userA, userB } = setup;
+  await setWorkspacePlan(a, wsId, "PREMIUM");
   const members: { userId: number; username: string }[] =
     await (await a.request.get(`${API}/workspaces/${wsId}/members`)).json();
   const idOf = (username: string) => members.find((m) => m.username === username)!.userId;
