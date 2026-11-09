@@ -170,6 +170,23 @@ export const callControlRecipe = defineRecipe({
   },
 });
 
+export const themeSwatchRecipe = defineRecipe({
+  base: {
+    w: "4",
+    h: "4",
+    borderRadius: "full",
+    borderWidth: "1px",
+    borderColor: "currentColor",
+    bg: "var(--link-accent)",
+    cursor: "pointer",
+    focusVisibleRing: "outside",
+    focusRingColor: "currentColor",
+  },
+  variants: {
+    selected: { true: { outline: "2px solid currentColor", outlineOffset: "1px" } },
+  },
+});
+
 export const navItemRecipe = defineRecipe({
   base: {
     display: "flex",

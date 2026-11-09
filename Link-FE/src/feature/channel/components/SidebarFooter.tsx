@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PresenceDot } from "@/components/ui/PresenceDot";
 import { SidebarAction } from "@/components/ui/SidebarAction";
+import { ThemePicker } from "@/components/ThemePicker";
 import { useLogout } from "@/feature/auth/hooks/useLogout";
 import { useAuthStore } from "@/feature/auth/stores/authStore";
 import { usePresenceStore } from "@/feature/presence/stores/presenceStore";
@@ -26,6 +27,9 @@ export function SidebarFooter() {
           <LogOut size={14} />
         </SidebarAction>
       </HStack>
+      <Box mt="2" color="sidebar.fg">
+        <ThemePicker />
+      </Box>
     </Box>
   );
 }
