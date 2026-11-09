@@ -19,11 +19,11 @@ async function ring(a: Page, b: Page) {
   return dialog;
 }
 
-/** Track `enabled` flags of the local stream shown in the call window. */
+/** Whether the mic track is enabled, and how many camera tracks the local stream has. */
 const localTracks = (page: Page) =>
   page.getByLabel("Your video").evaluate((v: HTMLVideoElement) => {
     const s = v.srcObject as MediaStream;
-    return { audio: s.getAudioTracks().every((t) => t.enabled), video: s.getVideoTracks().every((t) => t.enabled) };
+    return { audio: s.getAudioTracks().every((t) => t.enabled), cameras: s.getVideoTracks().length };
   });
 
 async function setupDm(browser: Parameters<typeof setupTwoUsersInWorkspace>[0], tag: string) {
@@ -77,17 +77,16 @@ test.describe("Call UI", () => {
       await expect(page.getByTestId("call-status")).toHaveText(peer.username);
     }
 
-    // B mutes the mic and turns the camera off, then back on.
-    const mute = b.getByRole("button", { name: "Mute microphone" });
-    const camera = b.getByRole("button", { name: "Turn off camera" });
-    await mute.click();
-    await camera.click();
-    await expect(mute).toHaveAttribute("aria-pressed", "true");
-    await expect(camera).toHaveAttribute("aria-pressed", "true");
-    await expect.poll(() => localTracks(b)).toEqual({ audio: false, video: false });
-    await mute.click();
-    await camera.click();
-    await expect.poll(() => localTracks(b)).toEqual({ audio: true, video: true });
+    // B joined with the mic on and the camera off. B mutes, turns the camera on, then reverses both.
+    await b.getByRole("button", { name: "Mute microphone" }).click();
+    await b.getByRole("button", { name: "Turn on camera" }).click();
+    await expect(b.getByRole("button", { name: "Unmute microphone" })).toBeVisible();
+    await expect(b.getByRole("button", { name: "Turn off camera" })).toBeVisible();
+    await expect.poll(() => localTracks(b)).toEqual({ audio: false, cameras: 1 });
+    await b.getByRole("button", { name: "Unmute microphone" }).click();
+    await b.getByRole("button", { name: "Turn off camera" }).click();
+    await expect(b.getByRole("button", { name: "Turn on camera" })).toBeVisible();
+    await expect.poll(() => localTracks(b)).toEqual({ audio: true, cameras: 0 });
 
     // A hangs up: both windows show "Call ended" and then close.
     await a.getByRole("button", { name: "Hang up" }).click();

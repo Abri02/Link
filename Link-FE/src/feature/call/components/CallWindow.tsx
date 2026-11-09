@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Box, chakra, HStack, Text } from "@chakra-ui/react";
 import { Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
 import { Tip } from "@/components/Tip";
@@ -15,7 +15,6 @@ const END_TEXT: Record<CallEndReason, string> = {
   rejected: "Call declined",
   declined: "Call declined",
   "no-answer": "No answer",
-  "media-error": "Camera or microphone unavailable",
   failed: "Connection failed",
   "premium-required": "Video calls need a Premium workspace",
 };
@@ -53,12 +52,10 @@ function StreamVideo({
 /** Floating window for our outgoing or active call. Shows the end reason briefly after it ends. */
 export function CallWindow() {
   const status = useCallStore((s) => s.status);
-  const callId = useCallStore((s) => s.callId);
   const endReason = useCallStore((s) => s.endReason);
   // We declined from the incoming dialog: there was never a call window.
   if (status === "idle" || status === "ringing" || (status === "ended" && endReason === "declined")) return null;
-  // A new call starts with the mic and camera on again.
-  return <ActiveCallWindow key={callId} />;
+  return <ActiveCallWindow />;
 }
 
 function ActiveCallWindow() {
@@ -72,16 +69,8 @@ function ActiveCallWindow() {
   const controls = useCallStore((s) => s.controls);
   const workspaceId = useWorkspaceStore((s) => s.selectedWorkspaceId);
   const peerName = usePeerName(channelId, peerUserId) ?? "Unknown user";
-  const [micOff, setMicOff] = useState(false);
-  const [cameraOff, setCameraOff] = useState(false);
-
-  // Muting disables the tracks; the peer connection keeps sending (silence / black frames).
-  useEffect(() => {
-    localStream?.getAudioTracks().forEach((t) => (t.enabled = !micOff));
-  }, [localStream, micOff]);
-  useEffect(() => {
-    localStream?.getVideoTracks().forEach((t) => (t.enabled = !cameraOff));
-  }, [localStream, cameraOff]);
+  const micOn = useCallStore((s) => s.micOn);
+  const cameraOn = useCallStore((s) => s.cameraOn);
 
   const statusText =
     status === "calling" ? `Calling ${peerName}…` : status === "ended" ? END_TEXT[endReason ?? "hangup"] : peerName;
@@ -141,24 +130,22 @@ function ActiveCallWindow() {
         </Text>
         {live && (
           <>
-            <Tip label={micOff ? "Unmute" : "Mute"} placement="top">
+            <Tip label={micOn ? "Mute" : "Unmute"} placement="top">
               <CallControl
-                aria-label="Mute microphone"
-                aria-pressed={micOff}
-                tone={micOff ? "danger" : undefined}
-                onClick={() => setMicOff((v) => !v)}
+                aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
+                tone={micOn ? undefined : "danger"}
+                onClick={() => controls?.toggleMic()}
               >
-                {micOff ? <MicOff size={16} /> : <Mic size={16} />}
+                {micOn ? <Mic size={16} /> : <MicOff size={16} />}
               </CallControl>
             </Tip>
-            <Tip label={cameraOff ? "Turn camera on" : "Turn camera off"} placement="top">
+            <Tip label={cameraOn ? "Turn camera off" : "Turn camera on"} placement="top">
               <CallControl
-                aria-label="Turn off camera"
-                aria-pressed={cameraOff}
-                tone={cameraOff ? "danger" : undefined}
-                onClick={() => setCameraOff((v) => !v)}
+                aria-label={cameraOn ? "Turn off camera" : "Turn on camera"}
+                tone={cameraOn ? undefined : "danger"}
+                onClick={() => controls?.toggleCamera()}
               >
-                {cameraOff ? <VideoOff size={16} /> : <Video size={16} />}
+                {cameraOn ? <Video size={16} /> : <VideoOff size={16} />}
               </CallControl>
             </Tip>
             {canShare && (

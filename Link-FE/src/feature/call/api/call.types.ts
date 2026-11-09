@@ -21,6 +21,5 @@ export type CallEndReason =
   | "rejected"       // the peer rejected our call (or was busy)
   | "declined"       // we rejected an incoming call
   | "no-answer"      // nobody answered within the timeout
-  | "media-error"    // camera/microphone unavailable or denied
   | "failed"         // the peer connection failed
   | "premium-required"; // the workspace is on the Free plan

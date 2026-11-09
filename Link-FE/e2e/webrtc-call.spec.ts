@@ -11,7 +11,7 @@ test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake
  */
 const STORE = "/src/feature/call/stores/callStore.ts";
 
-type Control = "startCall" | "accept" | "reject" | "hangUp";
+type Control = "startCall" | "accept" | "reject" | "hangUp" | "toggleCamera";
 
 const control = (page: Page, name: Control, ...args: number[]) =>
   page.evaluate(
@@ -29,7 +29,12 @@ const callState = (page: Page) =>
     const s = useCallStore.getState();
     const w = window as unknown as { __local?: MediaStream };
     if (s.localStream) w.__local = s.localStream;
-    return { status: s.status as string, endReason: s.endReason as string | null, peerUserId: s.peerUserId as number | null };
+    return {
+      status: s.status as string,
+      endReason: s.endReason as string | null,
+      peerUserId: s.peerUserId as number | null,
+      localTracks: (s.localStream?.getTracks().length ?? 0) as number,
+    };
   }, STORE);
 
 /** Plays the remote stream in a muted <video> and resolves once it has decoded frames. */
@@ -72,6 +77,8 @@ async function ring(a: Page, b: Page, dmId: number, bId: number) {
     if ((await callState(a)).status === "idle") await control(a, "startCall", dmId, bId);
     expect((await callState(b)).status).toBe("ringing");
   }).toPass({ timeout: 20_000 });
+  // The INVITE doesn't wait for the mic, so the caller's track can arrive just after the ring.
+  await expect.poll(async () => (await callState(a)).localTracks).toBeGreaterThan(0);
 }
 
 test.describe("WebRTC call hook", () => {
@@ -85,8 +92,9 @@ test.describe("WebRTC call hook", () => {
     await control(b, "accept");
     for (const page of [a, b]) {
       await expect.poll(async () => (await callState(page)).status).toBe("connected");
-      await expect.poll(() => remoteVideoPlays(page), { timeout: 20_000 }).toBe(true);
+      await control(page, "toggleCamera"); // calls start with the camera off
     }
+    for (const page of [a, b]) await expect.poll(() => remoteVideoPlays(page), { timeout: 20_000 }).toBe(true);
 
     await control(a, "hangUp");
     await expect.poll(() => callState(a)).toMatchObject({ status: "ended", endReason: "hangup" });
