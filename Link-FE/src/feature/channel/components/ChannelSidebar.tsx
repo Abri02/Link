@@ -3,6 +3,7 @@ import { useDisclosure } from "@chakra-ui/react";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { BillingDialog } from "@/feature/billing/components/BillingDialog";
 import { InviteMemberDialog } from "@/feature/workspace/components/InviteMemberDialog";
+import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useOpenConversation } from "@/feature/channel/hooks/useOpenConversation";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
@@ -21,7 +22,9 @@ import { BrowseChannelsDialog } from "./BrowseChannelsDialog";
 import { SidebarFooter } from "./SidebarFooter";
 
 const SIDEBAR_STYLES = {
-  w: "60",
+  w: { base: "auto", md: "60" },
+  flex: { base: "1", md: "none" },
+  minW: "0",
   minH: "100vh",
   bg: "sidebar.bg",
   borderRightWidth: "1px",
@@ -32,6 +35,7 @@ export function ChannelSidebar() {
   const selectedWorkspaceId = useWorkspaceStore((s) => s.selectedWorkspaceId);
   const selectedChannelId = useWorkspaceStore((s) => s.selectedChannelId);
   const selectChannel = useWorkspaceStore((s) => s.selectChannel);
+  const { data: workspaces } = useWorkspaces();
   const { data: channels, isLoading } = useChannels(selectedWorkspaceId);
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
   const { mutate: openConversation } = useOpenConversation(selectedWorkspaceId ?? 0);
@@ -51,7 +55,7 @@ export function ChannelSidebar() {
       <VStack {...SIDEBAR_STYLES} alignItems="stretch" gap="0">
         <Box flex="1" display="flex" alignItems="center" justifyContent="center">
           <Text color="sidebar.muted" textStyle="label" textAlign="center" px="4">
-            Select a workspace
+            {workspaces?.length === 0 ? "Create a workspace to get started" : "Select a workspace"}
           </Text>
         </Box>
         <SidebarFooter />

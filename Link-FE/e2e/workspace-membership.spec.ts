@@ -74,7 +74,7 @@ test.describe("Remove member / leave workspace", () => {
     member.once("dialog", (d) => d.accept());
     await member.getByRole("button", { name: "Leave workspace" }).click();
     await expect(member.getByRole("button", { name: wsName })).toHaveCount(0);
-    await expect(member.getByText("Select a workspace", { exact: true })).toBeVisible();
+    await expect(member.getByText("Create a workspace to get started").first()).toBeVisible();
 
     // The owner's member list no longer contains them.
     await owner.reload();

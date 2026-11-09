@@ -1,21 +1,24 @@
-import { Box, Center, Icon, VStack, Text, Spinner } from "@chakra-ui/react";
-import { Hash } from "lucide-react";
+import { Box, Center, VStack, Spinner } from "@chakra-ui/react";
+import { Hash, SearchX } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Message } from "../api/message.types";
 import type { MemberDetail } from "@/feature/workspace/api/workspace.types";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { scrollMotion } from "@/util/motion";
 import { MessageRow } from "./MessageRow";
 
 interface Props {
   messages: Message[] | undefined;
   isLoading: boolean;
   members: MemberDetail[];
+  isSearch?: boolean;
 }
 
-export function MessageList({ messages, isLoading, members }: Props) {
+export function MessageList({ messages, isLoading, members, isSearch }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: scrollMotion() });
   }, [messages]);
 
   return (
@@ -27,12 +30,9 @@ export function MessageList({ messages, isLoading, members }: Props) {
       )}
 
       {!isLoading && messages?.length === 0 && (
-        <Center flexDirection="column" h="full" gap="2">
-          <Icon as={Hash} boxSize="8" color="fg.muted" />
-          <Text textStyle="body" color="fg.muted">
-            No messages yet. Be the first to say something!
-          </Text>
-        </Center>
+        <EmptyState icon={isSearch ? SearchX : Hash}>
+          {isSearch ? "No messages match your search" : "No messages yet. Be the first to say something!"}
+        </EmptyState>
       )}
 
       <VStack gap="0" alignItems="stretch">

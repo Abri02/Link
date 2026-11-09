@@ -29,7 +29,7 @@ export function MemberPicker({ users, selected, onChange, max }: Props) {
       <VStack alignItems="stretch" gap="0.5" maxH="52" overflow="auto">
         {visible.length === 0 && (
           <Text color="fg.muted" textStyle="label" px="1">
-            No one to add
+            {filter.trim() ? "No one matches your search" : "No one to add"}
           </Text>
         )}
         {visible.map((u) => {
