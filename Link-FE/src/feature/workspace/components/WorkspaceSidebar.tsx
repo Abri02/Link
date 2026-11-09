@@ -1,7 +1,8 @@
-import { VStack, Box, Spinner, Dialog, Portal } from "@chakra-ui/react";
+import { VStack, Box, Spinner } from "@chakra-ui/react";
 import { Plus } from "lucide-react";
 import { useDisclosure } from "@chakra-ui/react";
 import { Tip } from "@/components/Tip";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { SidebarAction } from "@/components/ui/SidebarAction";
 import { useWorkspaces } from "../hooks/useWorkspaces";
 import { useWorkspaceStore } from "../stores/workspaceStore";
@@ -52,19 +53,9 @@ export function WorkspaceSidebar() {
         </Tip>
       </Box>
 
-      <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()}>
-        <Portal>
-          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
-          <Dialog.Positioner>
-            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
-              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
-                New workspace
-              </Dialog.Title>
-              <CreateWorkspaceDialog onClose={onClose} />
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <AppDialog open={open} onClose={onClose} title="New workspace">
+        <CreateWorkspaceDialog onClose={onClose} />
+      </AppDialog>
     </VStack>
   );
 }

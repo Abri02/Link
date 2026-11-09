@@ -121,6 +121,20 @@ export const bareInputRecipe = defineRecipe({
   },
 });
 
+export const listRowRecipe = defineRecipe({
+  base: {
+    display: "flex",
+    alignItems: "center",
+    gap: "2",
+    px: "1.5",
+    py: "1",
+    borderRadius: "l1",
+    color: "fg",
+    textStyle: "label",
+    _hover: { bg: "bg.subtle" },
+  },
+});
+
 export const navItemRecipe = defineRecipe({
   base: {
     display: "flex",

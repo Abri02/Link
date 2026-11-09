@@ -1,5 +1,6 @@
-import { VStack, Box, Text, Dialog, Portal } from "@chakra-ui/react";
+import { VStack, Box, Text } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { BillingDialog } from "@/feature/billing/components/BillingDialog";
 import { InviteMemberDialog } from "@/feature/workspace/components/InviteMemberDialog";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
@@ -106,75 +107,25 @@ export function ChannelSidebar() {
 
       <SidebarFooter />
 
-      <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()}>
-        <Portal>
-          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
-          <Dialog.Positioner>
-            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
-              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
-                New channel
-              </Dialog.Title>
-              <CreateChannelDialog workspaceId={selectedWorkspaceId} onClose={onClose} />
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <AppDialog open={open} onClose={onClose} title="New channel">
+        <CreateChannelDialog workspaceId={selectedWorkspaceId} onClose={onClose} />
+      </AppDialog>
 
-      <Dialog.Root open={browseOpen} onOpenChange={(e) => !e.open && onBrowseClose()}>
-        <Portal>
-          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
-          <Dialog.Positioner>
-            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
-              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
-                Browse channels
-              </Dialog.Title>
-              {browseOpen && <BrowseChannelsDialog workspaceId={selectedWorkspaceId} onClose={onBrowseClose} />}
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <AppDialog open={browseOpen} onClose={onBrowseClose} title="Browse channels">
+        <BrowseChannelsDialog workspaceId={selectedWorkspaceId} onClose={onBrowseClose} />
+      </AppDialog>
 
-      <Dialog.Root open={newMessageOpen} onOpenChange={(e) => !e.open && onNewMessageClose()}>
-        <Portal>
-          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
-          <Dialog.Positioner>
-            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
-              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
-                New message
-              </Dialog.Title>
-              {newMessageOpen && <NewMessageDialog workspaceId={selectedWorkspaceId} onClose={onNewMessageClose} />}
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <AppDialog open={newMessageOpen} onClose={onNewMessageClose} title="New message">
+        <NewMessageDialog workspaceId={selectedWorkspaceId} onClose={onNewMessageClose} />
+      </AppDialog>
 
-      <Dialog.Root open={billingOpen} onOpenChange={(e) => !e.open && onBillingClose()}>
-        <Portal>
-          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
-          <Dialog.Positioner>
-            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
-              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
-                Billing
-              </Dialog.Title>
-              {billingOpen && <BillingDialog workspaceId={selectedWorkspaceId} />}
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <AppDialog open={billingOpen} onClose={onBillingClose} title="Billing">
+        <BillingDialog workspaceId={selectedWorkspaceId} />
+      </AppDialog>
 
-      <Dialog.Root open={inviteOpen} onOpenChange={(e) => !e.open && onInviteClose()}>
-        <Portal>
-          <Dialog.Backdrop bg="rgba(0,0,0,0.7)" />
-          <Dialog.Positioner>
-            <Dialog.Content bg="#1C1C30" border="1px solid #2E2E50" borderRadius="12px" p="24px" maxW="360px" w="full">
-              <Dialog.Title color="#F4F4F6" fontSize="16px" fontWeight="600" mb="16px">
-                Invite member
-              </Dialog.Title>
-              <InviteMemberDialog workspaceId={selectedWorkspaceId} onClose={onInviteClose} />
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+      <AppDialog open={inviteOpen} onClose={onInviteClose} title="Invite member">
+        <InviteMemberDialog workspaceId={selectedWorkspaceId} onClose={onInviteClose} />
+      </AppDialog>
     </VStack>
   );
 }
