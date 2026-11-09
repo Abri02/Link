@@ -33,6 +33,8 @@ interface CallState {
   /** What the peer last told us it has on. `peerCameraOn` is also true while it shares a screen. */
   peerMicOn: boolean;
   peerCameraOn: boolean;
+  /** Why the last device request failed. Cleared by the next successful toggle. */
+  deviceError: string | null;
   endReason: CallEndReason | null;
   controls: CallControls | null;
 }
@@ -49,6 +51,7 @@ export const idleCall = {
   cameraOn: false,
   peerMicOn: false,
   peerCameraOn: false,
+  deviceError: null,
   endReason: null,
 } satisfies Omit<CallState, "controls">;
 
