@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, HStack, IconButton, Text, VStack } from "@chakra-ui/react";
+import { Box, chakra, HStack, Text } from "@chakra-ui/react";
 import { Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
 import { Tip } from "@/components/Tip";
+import { callControlRecipe, callWindowRecipe } from "@/theme/recipes";
 import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import type { CallEndReason } from "../api/call.types";
@@ -18,6 +19,9 @@ const END_TEXT: Record<CallEndReason, string> = {
   failed: "Connection failed",
   "premium-required": "Video calls need a Premium workspace",
 };
+
+const CallPanel = chakra("div", callWindowRecipe);
+const CallControl = chakra("button", callControlRecipe);
 
 function StreamVideo({
   stream,
@@ -41,7 +45,7 @@ function StreamVideo({
       autoPlay
       playsInline
       muted={muted}
-      style={{ width: "100%", height: "100%", objectFit: fit, background: "#0E0E1A" }}
+      style={{ width: "100%", height: "100%", objectFit: fit }}
     />
   );
 }
@@ -86,28 +90,22 @@ function ActiveCallWindow() {
   const canShare = status === "connected" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
 
   return (
-    <VStack
+    <CallPanel
       role="region"
       aria-label="Call"
       position="fixed"
-      right="24px"
-      bottom="24px"
+      right="6"
+      bottom="6"
       zIndex={1400}
       w="420px"
       maxW="calc(100vw - 32px)"
-      bg="#1C1C30"
-      border="1px solid #2E2E50"
-      borderRadius="12px"
-      boxShadow="0 12px 40px rgba(0,0,0,0.5)"
-      overflow="hidden"
-      gap="0"
     >
-      <Box position="relative" w="full" aspectRatio={4 / 3} bg="#0E0E1A">
+      <Box position="relative" w="full" aspectRatio={4 / 3} bg="overlay.video">
         {/* "contain" so a shared screen isn't cropped. */}
         {status === "connected" && <StreamVideo stream={remoteStream} label="Remote video" fit="contain" />}
         {status !== "connected" && (
           <Box position="absolute" inset="0" display="flex" alignItems="center" justifyContent="center">
-            <Text color="rgba(244,244,246,0.6)" fontSize="14px">
+            <Text textStyle="body" color="overlay.muted">
               {statusText}
             </Text>
           </Box>
@@ -115,13 +113,15 @@ function ActiveCallWindow() {
         {live && (
           <Box
             position="absolute"
-            right="10px"
-            bottom="10px"
-            w="120px"
+            right="2.5"
+            bottom="2.5"
+            w="32"
             aspectRatio={4 / 3}
-            borderRadius="8px"
+            bg="overlay.video"
+            borderWidth="1px"
+            borderColor="overlay.border"
+            borderRadius="l1"
             overflow="hidden"
-            border="1px solid #38385E"
           >
             <StreamVideo stream={screenStream ?? localStream} muted label="Your video" fit={sharing ? "contain" : "cover"} />
           </Box>
@@ -129,71 +129,56 @@ function ActiveCallWindow() {
       </Box>
 
       {endReason === "premium-required" && (
-        <Box w="full" px="14px" pt="10px">
+        // A themed strip: the notice's error and link colours are chosen for theme surfaces, not the dark window.
+        <Box px="3.5" py="2.5" bg="bg.panel">
           <UpsellNotice workspaceId={workspaceId} message="Upgrade this workspace to make video calls." />
         </Box>
       )}
 
-      <HStack w="full" px="14px" py="10px" gap="8px">
-        <Text flex="1" color="#F4F4F6" fontSize="13px" fontWeight="600" truncate data-testid="call-status">
+      <HStack w="full" px="3.5" py="2.5" gap="2">
+        <Text flex="1" textStyle="label" truncate data-testid="call-status">
           {statusText}
         </Text>
         {live && (
           <>
             <Tip label={micOff ? "Unmute" : "Mute"} placement="top">
-              <IconButton
-                size="sm"
-                variant="ghost"
+              <CallControl
                 aria-label="Mute microphone"
                 aria-pressed={micOff}
-                color={micOff ? "#FF6B6B" : "#F4F4F6"}
-                _hover={{ bg: "#2A2A48" }}
+                tone={micOff ? "danger" : undefined}
                 onClick={() => setMicOff((v) => !v)}
               >
                 {micOff ? <MicOff size={16} /> : <Mic size={16} />}
-              </IconButton>
+              </CallControl>
             </Tip>
             <Tip label={cameraOff ? "Turn camera on" : "Turn camera off"} placement="top">
-              <IconButton
-                size="sm"
-                variant="ghost"
+              <CallControl
                 aria-label="Turn off camera"
                 aria-pressed={cameraOff}
-                color={cameraOff ? "#FF6B6B" : "#F4F4F6"}
-                _hover={{ bg: "#2A2A48" }}
+                tone={cameraOff ? "danger" : undefined}
                 onClick={() => setCameraOff((v) => !v)}
               >
                 {cameraOff ? <VideoOff size={16} /> : <Video size={16} />}
-              </IconButton>
+              </CallControl>
             </Tip>
             {canShare && (
               <Tip label={sharing ? "Stop sharing" : "Share screen"} placement="top">
-                <IconButton
-                  size="sm"
-                  variant="ghost"
+                <CallControl
                   aria-label="Share screen"
                   aria-pressed={sharing}
-                  color={sharing ? "#10B981" : "#F4F4F6"}
-                  _hover={{ bg: "#2A2A48" }}
+                  tone={sharing ? "active" : undefined}
                   onClick={() => controls?.toggleScreenShare()}
                 >
                   {sharing ? <MonitorOff size={16} /> : <MonitorUp size={16} />}
-                </IconButton>
+                </CallControl>
               </Tip>
             )}
-            <IconButton
-              size="sm"
-              aria-label="Hang up"
-              bg="#E5484D"
-              color="white"
-              _hover={{ bg: "#CC3F44" }}
-              onClick={() => controls?.hangUp()}
-            >
+            <CallControl aria-label="Hang up" tone="hangup" onClick={() => controls?.hangUp()}>
               <PhoneOff size={16} />
-            </IconButton>
+            </CallControl>
           </>
         )}
       </HStack>
-    </VStack>
+    </CallPanel>
   );
 }

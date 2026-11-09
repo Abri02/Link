@@ -1,4 +1,5 @@
-import { Button, Text, VStack } from "@chakra-ui/react";
+import { Button, VStack } from "@chakra-ui/react";
+import { FormError } from "@/components/ui/FormError";
 import type { Subscription } from "../api/billing.types";
 import { useBillingRedirect } from "../hooks/useBillingRedirect";
 
@@ -19,24 +20,11 @@ export function BillingActionButton({ subscription }: Props) {
   );
 
   return (
-    <VStack gap="8px" alignItems="stretch">
-      <Button
-        onClick={() => mutate()}
-        loading={isPending}
-        bg="#6C63FF"
-        color="white"
-        _hover={{ bg: "#5B52E0" }}
-        borderRadius="8px"
-        h="36px"
-        fontSize="13px"
-      >
+    <VStack gap="2" alignItems="stretch">
+      <Button onClick={() => mutate()} loading={isPending}>
         {hasSubscription ? "Manage billing" : "Upgrade to Premium"}
       </Button>
-      {error && (
-        <Text color="#FF6B6B" fontSize="12px" role="alert">
-          {error.message}
-        </Text>
-      )}
+      {error && <FormError>{error.message}</FormError>}
     </VStack>
   );
 }

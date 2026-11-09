@@ -6,15 +6,17 @@ interface Props {
   onClose: () => void;
   title: ReactNode;
   children: ReactNode;
+  role?: "dialog" | "alertdialog";
 }
 
 /** Centered dialog. Its content only mounts while open, so form state resets on close. */
-export function AppDialog({ open, onClose, title, children }: Props) {
+export function AppDialog({ open, onClose, title, children, role }: Props) {
   return (
     <Dialog.Root
       open={open}
       onOpenChange={(e) => !e.open && onClose()}
       placement="center"
+      role={role}
       lazyMount
       unmountOnExit
     >

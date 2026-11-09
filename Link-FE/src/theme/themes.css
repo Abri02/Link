@@ -76,4 +76,16 @@
   --link-mention-bg: color-mix(in srgb, var(--link-accent) 18%, var(--link-panel));
   --link-mention-fg: var(--link-text);
   --link-overlay: rgb(0 0 0 / 0.6);
+
+  /* The call window is dark in every theme, so these are fixed. */
+  --link-overlay-video: #0d0e10;
+  --link-overlay-panel: #17181a;
+  --link-overlay-fg: #ededea;
+  --link-overlay-muted: #a3a39d;
+  --link-overlay-border: #34363a;
+  --link-overlay-hover: #2a2c30;
+  --link-overlay-danger: #f27a6e;
+  --link-overlay-active: #5fd38d;
+  --link-overlay-hangup: #c9322c;
+  --link-overlay-hangup-hover: #a92823;
 }
