@@ -66,7 +66,8 @@ async function connectedCall(browser: Browser, tag: string) {
   }).toPass({ timeout: 20_000 });
   await dialog.getByRole("button", { name: "Accept" }).click();
 
-  // Both sides see their own camera and the other's.
+  // Calls start with the camera off. Once both turn it on, each sees their own and the other's.
+  for (const page of [a, b]) await page.getByRole("button", { name: "Turn on camera" }).click();
   for (const page of [a, b]) {
     await expectPlaying(page, "Your video");
     await expectPlaying(page, "Remote video");

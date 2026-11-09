@@ -6,6 +6,10 @@ export interface CallControls {
   accept: () => void;
   reject: () => void;
   hangUp: () => void;
+  /** Mutes or unmutes. With no mic open yet, asks for it again. */
+  toggleMic: () => void;
+  /** Opens the camera, or stops it and releases the device. */
+  toggleCamera: () => void;
   /** Starts sharing the screen instead of the camera, or stops it. Only while connected. */
   toggleScreenShare: () => void;
 }
@@ -23,6 +27,9 @@ interface CallState {
   remoteStream: MediaStream | null;
   /** Our screen capture while we share it (sent in place of the camera). */
   screenStream: MediaStream | null;
+  /** True only while the device is open and live. A device that failed stays off. */
+  micOn: boolean;
+  cameraOn: boolean;
   endReason: CallEndReason | null;
   controls: CallControls | null;
 }
@@ -35,6 +42,8 @@ export const idleCall = {
   localStream: null,
   remoteStream: null,
   screenStream: null,
+  micOn: false,
+  cameraOn: false,
   endReason: null,
 } satisfies Omit<CallState, "controls">;
 
