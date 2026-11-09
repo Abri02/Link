@@ -223,6 +223,72 @@ test.describe("Call media controls", () => {
     await close();
   });
 
+  test("expand and fullscreen enlarge the call without touching the video", async ({ browser }) => {
+    const { a, b, close } = await connectedCall(browser, "bigwin", (page) =>
+      page.addInitScript(() => Object.defineProperty(document, "fullscreenEnabled", { value: false })),
+    );
+    type MarkedVideo = HTMLVideoElement & { __same?: boolean };
+    const call = b.getByRole("region", { name: "Call" });
+    const size = async () => (await remoteVideo(b).boundingBox())!;
+    const isSameElement = () => remoteVideo(b).evaluate((v: MarkedVideo) => v.__same === true);
+
+    await button(a, "Turn on camera").click();
+    await expect.poll(async () => (await videoSize(b)).readyState, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
+    await remoteVideo(b).evaluate((v: MarkedVideo) => { v.__same = true; });
+    const small = await size();
+
+    const expand = button(b, "Expand");
+    await expect(expand).toHaveAttribute("aria-pressed", "false");
+    await expand.click();
+    await expect(expand).toHaveAttribute("aria-pressed", "true");
+    const large = await size();
+    expect(large.width).toBeGreaterThan(small.width * 2);
+    expect(large.height).toBeGreaterThan(small.height * 1.5);
+    expect(await isSameElement()).toBe(true);
+    const before = await remoteVideo(b).evaluate((v: HTMLVideoElement) => v.currentTime);
+    await expect.poll(() => remoteVideo(b).evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(before);
+
+    await expand.click();
+    await expect(expand).toHaveAttribute("aria-pressed", "false");
+    const restored = await size();
+    expect(Math.abs(restored.width - small.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(restored.height - small.height)).toBeLessThanOrEqual(1);
+    expect(await isSameElement()).toBe(true);
+
+    // The browser on B's side reports no fullscreen support, so only A gets the button.
+    await expect(button(b, "Fullscreen")).toHaveCount(0);
+    const fullscreen = button(a, "Fullscreen");
+    const fullscreenLabel = () => a.evaluate(() => document.fullscreenElement?.getAttribute("aria-label") ?? null);
+    await fullscreen.click();
+    await expect(fullscreen).toHaveAttribute("aria-pressed", "true");
+    expect(await fullscreenLabel()).toBe("Call");
+    // Tooltips must render inside the fullscreen element, or they couldn't be seen.
+    await fullscreen.hover();
+    await expect(a.getByRole("region", { name: "Call" }).getByRole("tooltip")).toHaveText("Exit fullscreen");
+    // The same path as pressing Esc: the browser leaves fullscreen without our button.
+    await a.evaluate(() => document.exitFullscreen());
+    await expect(fullscreen).toHaveAttribute("aria-pressed", "false");
+    expect(await fullscreenLabel()).toBeNull();
+
+    // A shared screen, expanded on the viewing side.
+    await button(a, "Share screen").click();
+    await expect.poll(async () => {
+      const { width, height } = await videoSize(b);
+      return height > 0 ? width / height : 0;
+    }, { timeout: 20_000 }).toBeCloseTo(16 / 9, 1);
+    await expand.click();
+    await call.screenshot({ path: test.info().outputPath("shared-screen-expanded.png") });
+
+    // Phone width: expanded fills the screen and every control still fits.
+    await b.setViewportSize({ width: 375, height: 667 });
+    await expect.poll(async () => (await call.boundingBox())!.width).toBe(375);
+    expect((await call.boundingBox())!.height).toBe(667);
+    const hangUp = (await button(b, "Hang up").boundingBox())!;
+    expect(hangUp.x + hangUp.width).toBeLessThanOrEqual(375);
+
+    await close();
+  });
+
   test("without HTTPS a caller can still start a call and is told why devices are off", async ({ browser }) => {
     const { a, b, userA, userB, close } = await connectedCall(browser, "nohttps", undefined, (page) =>
       page.addInitScript(() => {
