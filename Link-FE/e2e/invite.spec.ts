@@ -28,16 +28,16 @@ test.describe("Invite member", () => {
     const wsName = `Invite-${Date.now()}`;
     await createWorkspace(owner, wsName);
     await selectWorkspace(owner, wsName);
-    await expect(owner.getByText("MEMBERS — 1")).toBeVisible();
+    await expect(owner.getByText("Members — 1")).toBeVisible();
 
     let dialog = await invite(owner, byName.username);
     await expect(dialog).toBeHidden();
-    await expect(owner.getByText("MEMBERS — 2")).toBeVisible();
+    await expect(owner.getByText("Members — 2")).toBeVisible();
     await expect(owner.getByRole("button", { name: byName.username, exact: true })).toBeVisible();
 
     dialog = await invite(owner, byEmail.email);
     await expect(dialog).toBeHidden();
-    await expect(owner.getByText("MEMBERS — 3")).toBeVisible();
+    await expect(owner.getByText("Members — 3")).toBeVisible();
     await expect(owner.getByRole("button", { name: byEmail.username, exact: true })).toBeVisible();
 
     // Unknown user: the dialog stays open with an error and nobody is added.
@@ -50,7 +50,7 @@ test.describe("Invite member", () => {
     dialog = await invite(owner, byName.username);
     await expect(dialog.getByText("User is already a member")).toBeVisible();
     await owner.keyboard.press("Escape");
-    await expect(owner.getByText("MEMBERS — 3")).toBeVisible();
+    await expect(owner.getByText("Members — 3")).toBeVisible();
 
     await ownerCtx.close();
   });

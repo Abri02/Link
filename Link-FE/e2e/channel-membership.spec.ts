@@ -11,8 +11,8 @@ import {
   waitForSubscription,
 } from "./helpers";
 
-/** The CHANNELS section of the sidebar (the DM list and member list are separate sections). */
-const channelsOf = (page: Page) => page.getByText("CHANNELS", { exact: true }).locator("../..");
+/** The Channels section of the sidebar (the DM list and member list are separate sections). */
+const channelsOf = (page: Page) => page.getByText("Channels", { exact: true }).locator("../..");
 
 /** Reloads so the page's per-user socket (`/user/queue/channels`) is subscribed before anyone acts. */
 async function reloadWithUserSocket(page: Page, wsName: string) {

@@ -18,7 +18,7 @@ export function WorkspacePage() {
 
   return (
     <>
-      <HStack gap="0" h="100vh" overflow="hidden" bg="#1C1C2E">
+      <HStack gap="0" h="100vh" overflow="hidden" bg="bg">
         <WorkspaceSidebar />
         <ChannelSidebar />
         <MessageArea />

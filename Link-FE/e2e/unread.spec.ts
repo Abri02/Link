@@ -60,7 +60,7 @@ test.describe("Persistent unread state", () => {
 
     await b.reload();
     await selectWorkspace(b, wsName);
-    const bDm = b.getByText("DIRECT MESSAGES", { exact: true }).locator("..")
+    const bDm = b.getByText("Direct messages", { exact: true }).locator("..")
       .getByRole("button", { name: new RegExp(userA.username) });
     await expect(bDm.getByText("3", { exact: true })).toBeVisible();
 

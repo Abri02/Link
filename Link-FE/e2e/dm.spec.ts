@@ -7,7 +7,7 @@ test.describe("Direct messages", () => {
 
     // A clicks B's name in the member list, which opens the DM.
     await a.getByRole("button", { name: userB.username, exact: true }).click();
-    const aDms = a.getByText("DIRECT MESSAGES", { exact: true }).locator("..");
+    const aDms = a.getByText("Direct messages", { exact: true }).locator("..");
     await expect(aDms.getByRole("button", { name: new RegExp(userB.username) })).toBeVisible();
     const composer = a.getByPlaceholder(`Message ${userB.username}`, { exact: true });
     await expect(composer).toBeVisible();
@@ -18,7 +18,7 @@ test.describe("Direct messages", () => {
     await b.reload();
     await bNotifications;
     await selectWorkspace(b, wsName);
-    const bDm = b.getByText("DIRECT MESSAGES", { exact: true }).locator("..")
+    const bDm = b.getByText("Direct messages", { exact: true }).locator("..")
       .getByRole("button", { name: new RegExp(userA.username) });
     await expect(bDm).toBeVisible();
 

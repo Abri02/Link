@@ -72,7 +72,7 @@ test.describe("Plan limits", () => {
     await a.request.post(`${API}/workspaces/${wsId}/dms`, { data: { userIds: [bId] } });
     await a.reload();
     await selectWorkspace(a, wsName);
-    await a.getByText("DIRECT MESSAGES", { exact: true }).locator("..")
+    await a.getByText("Direct messages", { exact: true }).locator("..")
       .getByRole("button", { name: userB.username, exact: true }).click();
 
     // Retry while the call socket is still connecting.
