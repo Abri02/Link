@@ -49,6 +49,78 @@ export const menuRecipe = defineSlotRecipe({
   },
 });
 
+export const messageRowRecipe = defineRecipe({
+  base: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "2",
+    px: "4",
+    pt: "2",
+    pb: "1",
+    transition: "backgrounds",
+    transitionDuration: "fast",
+    _hover: { bg: "bg.subtle" },
+  },
+  variants: {
+    // Lines up with the text column: px (4) + avatar (8) + gap (2).
+    grouped: { true: { display: "block", pl: "14", pt: "0.5", pb: "0.5" } },
+  },
+});
+
+export const reactionChipRecipe = defineRecipe({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "1",
+    h: "6",
+    px: "1.5",
+    borderWidth: "1px",
+    borderColor: "border",
+    borderRadius: "l1",
+    bg: "bg.panel",
+    color: "fg",
+    textStyle: "caption",
+    cursor: "pointer",
+    focusVisibleRing: "outside",
+    _hover: { borderColor: "brand.solid" },
+  },
+  variants: {
+    reacted: { true: { borderColor: "brand.solid", bg: "brand.subtle" } },
+  },
+});
+
+export const inputBoxRecipe = defineRecipe({
+  base: {
+    display: "flex",
+    alignItems: "center",
+    gap: "1",
+    p: "1",
+    borderWidth: "1px",
+    borderColor: "border",
+    borderRadius: "l2",
+    bg: "bg.panel",
+    transition: "colors",
+    transitionDuration: "fast",
+    _hover: { borderColor: "border.emphasized" },
+    _focusWithin: { borderColor: "brand.solid", _hover: { borderColor: "brand.solid" } },
+  },
+});
+
+export const bareInputRecipe = defineRecipe({
+  base: {
+    flex: "1",
+    minW: "0",
+    h: "8",
+    px: "1.5",
+    bg: "transparent",
+    color: "fg",
+    textStyle: "body",
+    outline: "none",
+    _placeholder: { color: "fg.muted" },
+    _disabled: { opacity: 0.5, cursor: "not-allowed" },
+  },
+});
+
 export const navItemRecipe = defineRecipe({
   base: {
     display: "flex",

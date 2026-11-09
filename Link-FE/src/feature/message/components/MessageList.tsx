@@ -1,4 +1,4 @@
-import { Box, VStack, Text, Spinner } from "@chakra-ui/react";
+import { Box, Center, Icon, VStack, Text, Spinner } from "@chakra-ui/react";
 import { Hash } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Message } from "../api/message.types";
@@ -19,20 +19,20 @@ export function MessageList({ messages, isLoading, members }: Props) {
   }, [messages]);
 
   return (
-    <Box flex="1" overflow="auto" w="full" py="8px">
+    <Box flex="1" overflow="auto" w="full" py="2">
       {isLoading && (
-        <Box display="flex" justifyContent="center" pt="32px">
-          <Spinner color="#6C63FF" />
-        </Box>
+        <Center pt="8">
+          <Spinner color="brand.solid" />
+        </Center>
       )}
 
       {!isLoading && messages?.length === 0 && (
-        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" h="full" gap="8px">
-          <Hash size={32} color="rgba(244,244,246,0.15)" />
-          <Text color="rgba(244,244,246,0.3)" fontSize="14px">
+        <Center flexDirection="column" h="full" gap="2">
+          <Icon as={Hash} boxSize="8" color="fg.muted" />
+          <Text textStyle="body" color="fg.muted">
             No messages yet. Be the first to say something!
           </Text>
-        </Box>
+        </Center>
       )}
 
       <VStack gap="0" alignItems="stretch">

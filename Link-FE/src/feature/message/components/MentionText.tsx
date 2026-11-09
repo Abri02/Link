@@ -17,10 +17,10 @@ export function MentionText({ body }: { body: string }) {
         as="span"
         key={i}
         data-mention={seg.mention}
-        color={seg.mention === me ? "#FDE68A" : "#A5A0FF"}
-        bg={seg.mention === me ? "rgba(245,158,11,0.18)" : "rgba(108,99,255,0.18)"}
-        borderRadius="3px"
-        px="2px"
+        color={seg.mention === me ? "brand.contrast" : "mention.fg"}
+        bg={seg.mention === me ? "brand.solid" : "mention.bg"}
+        borderRadius="l1"
+        px="0.5"
         fontWeight="600"
       >
         {seg.text}
