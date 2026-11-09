@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Box, chakra, HStack, Text } from "@chakra-ui/react";
+import { Box, Center, chakra, HStack, Text, VStack } from "@chakra-ui/react";
 import { Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
 import { Tip } from "@/components/Tip";
 import { callControlRecipe, callWindowRecipe } from "@/theme/recipes";
@@ -71,6 +71,8 @@ function ActiveCallWindow() {
   const peerName = usePeerName(channelId, peerUserId) ?? "Unknown user";
   const micOn = useCallStore((s) => s.micOn);
   const cameraOn = useCallStore((s) => s.cameraOn);
+  const peerMicOn = useCallStore((s) => s.peerMicOn);
+  const peerCameraOn = useCallStore((s) => s.peerCameraOn);
 
   const statusText =
     status === "calling" ? `Calling ${peerName}…` : status === "ended" ? END_TEXT[endReason ?? "hangup"] : peerName;
@@ -92,6 +94,35 @@ function ActiveCallWindow() {
       <Box position="relative" w="full" aspectRatio={4 / 3} bg="overlay.video">
         {/* "contain" so a shared screen isn't cropped. */}
         {status === "connected" && <StreamVideo stream={remoteStream} label="Remote video" fit="contain" />}
+        {/* Covers the video rather than replacing it: the <video> also plays the remote audio. */}
+        {status === "connected" && !peerCameraOn && (
+          <VStack data-testid="peer-camera-off" position="absolute" inset="0" justify="center" gap="2" bg="overlay.video">
+            <Center w="16" h="16" borderRadius="l2" bg="overlay.hover" aria-hidden>
+              <Text textStyle="title" color="overlay.fg">
+                {peerName.slice(0, 2).toUpperCase()}
+              </Text>
+            </Center>
+            <Text textStyle="body" color="overlay.muted">
+              {peerName}
+            </Text>
+          </VStack>
+        )}
+        {status === "connected" && !peerMicOn && (
+          <Center
+            role="img"
+            aria-label={`${peerName} is muted`}
+            position="absolute"
+            left="2.5"
+            top="2.5"
+            w="7"
+            h="7"
+            borderRadius="l1"
+            bg="overlay.panel"
+            color="overlay.danger"
+          >
+            <MicOff size={14} />
+          </Center>
+        )}
         {status !== "connected" && (
           <Box position="absolute" inset="0" display="flex" alignItems="center" justifyContent="center">
             <Text textStyle="body" color="overlay.muted">
@@ -99,7 +130,7 @@ function ActiveCallWindow() {
             </Text>
           </Box>
         )}
-        {live && (
+        {live && (cameraOn || sharing) && (
           <Box
             position="absolute"
             right="2.5"

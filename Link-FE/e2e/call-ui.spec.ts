@@ -73,7 +73,7 @@ test.describe("Call UI", () => {
     for (const [page, peer] of [[a, userB], [b, userA]] as const) {
       const call = page.getByRole("region", { name: "Call" });
       await expect(call.getByLabel("Remote video")).toBeVisible();
-      await expect(call.getByLabel("Your video")).toBeVisible();
+      await expect(call.getByLabel("Your video")).toHaveCount(0);
       await expect(page.getByTestId("call-status")).toHaveText(peer.username);
     }
 
@@ -84,9 +84,10 @@ test.describe("Call UI", () => {
     await expect(b.getByRole("button", { name: "Turn off camera" })).toBeVisible();
     await expect.poll(() => localTracks(b)).toEqual({ audio: false, cameras: 1 });
     await b.getByRole("button", { name: "Unmute microphone" }).click();
+    await expect.poll(() => localTracks(b)).toEqual({ audio: true, cameras: 1 });
     await b.getByRole("button", { name: "Turn off camera" }).click();
     await expect(b.getByRole("button", { name: "Turn on camera" })).toBeVisible();
-    await expect.poll(() => localTracks(b)).toEqual({ audio: true, cameras: 0 });
+    await expect(b.getByLabel("Your video")).toHaveCount(0);
 
     // A hangs up: both windows show "Call ended" and then close.
     await a.getByRole("button", { name: "Hang up" }).click();

@@ -14,12 +14,13 @@ import java.security.Principal
 import java.time.Instant
 
 /** PREMIUM_REQUIRED is server-only: it tells the sender that the workspace's plan has no video calls. */
-enum class CallSignalType { INVITE, ACCEPT, REJECT, HANGUP, OFFER, ANSWER, ICE, PREMIUM_REQUIRED }
+enum class CallSignalType { INVITE, ACCEPT, REJECT, HANGUP, OFFER, ANSWER, ICE, MEDIA_STATE, PREMIUM_REQUIRED }
 
 /**
  * A WebRTC signaling frame. The client SENDs it to `/app/call.signal`; the recipient receives it on
  * `/user/queue/call`. `fromUserId` is ignored on input and set from the caller's token.
- * `payload` carries the SDP (`OFFER`/`ANSWER`) or ICE candidate (`ICE`) as-is.
+ * `payload` carries the SDP (`OFFER`/`ANSWER`), ICE candidate (`ICE`) or the sender's
+ * `{mic, camera, seq}` (`MEDIA_STATE`) as-is.
  */
 data class CallSignal(
     val type: CallSignalType,
@@ -66,7 +67,7 @@ class CallSignalController(
         val premium by lazy { access.planOf(channel.workspaceId) == WorkspacePlan.PREMIUM }
         when (signal.type) {
             CallSignalType.INVITE, CallSignalType.ACCEPT -> if (!premium) return refuse(signal, fromUserId)
-            CallSignalType.OFFER, CallSignalType.ANSWER, CallSignalType.ICE ->
+            CallSignalType.OFFER, CallSignalType.ANSWER, CallSignalType.ICE, CallSignalType.MEDIA_STATE ->
                 if (!premium && !inProgress(signal)) return
             else -> {}
         }

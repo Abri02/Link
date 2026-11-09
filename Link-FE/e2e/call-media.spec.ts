@@ -94,6 +94,44 @@ test.describe("Call media controls", () => {
     await close();
   });
 
+  test("each side sees what the other has on", async ({ browser }) => {
+    const { a, b, userA, close } = await connectedCall(browser, "peerstate");
+    const placeholder = b.getByTestId("peer-camera-off");
+    const muted = b.getByRole("img", { name: `${userA.username} is muted` });
+
+    // Camera off: B sees A's name instead of the video, which stays mounted for the audio.
+    await expect(button(a, "Mute microphone")).toBeVisible();
+    await expect(placeholder).toContainText(userA.username);
+    await expect(muted).toBeHidden();
+    await expect(remoteVideo(b)).toHaveCount(1);
+    await expect(a.getByLabel("Your video")).toHaveCount(0);
+    await b.getByRole("region", { name: "Call" }).screenshot({ path: test.info().outputPath("camera-off.png") });
+
+    await button(a, "Turn on camera").click();
+    await expect(placeholder).toBeHidden();
+    await expect(a.getByLabel("Your video")).toBeVisible();
+
+    await button(a, "Mute microphone").click();
+    await expect(muted).toBeVisible();
+    await button(a, "Unmute microphone").click();
+    await expect(muted).toBeHidden();
+
+    await button(a, "Turn off camera").click();
+    await expect(placeholder).toBeVisible();
+    await expect(a.getByLabel("Your video")).toHaveCount(0);
+
+    // A shared screen counts as video, even with the camera off.
+    const share = button(a, "Share screen");
+    await share.click();
+    await expect(share).toHaveAttribute("aria-pressed", "true");
+    await expect(placeholder).toBeHidden();
+    await expect(a.getByLabel("Your video")).toBeVisible();
+    await share.click();
+    await expect(placeholder).toBeVisible();
+
+    await close();
+  });
+
   test("a screen share reaches the peer with the camera off", async ({ browser }) => {
     const { a, b, close } = await connectedCall(browser, "screenoff");
     const share = button(a, "Share screen");
