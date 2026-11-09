@@ -51,15 +51,38 @@ const newSession = (callId: string, channelId: number, peerUserId: number, role:
   mediaSeq: 0, peerMediaSeq: 0,
 });
 
-/** Opens one device. Null if it can't be opened for any reason: a device never ends a call. */
-const openTrack = async (kind: "audio" | "video") => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ [kind]: true });
-    return stream.getTracks()[0] ?? null;
-  } catch {
-    return null;
+type DeviceKind = "audio" | "video";
+
+/** The text shown in the call window for a device that failed. */
+const deviceMessage = (kind: DeviceKind, errorName: string) => {
+  const device = kind === "audio" ? "microphone" : "camera";
+  switch (errorName) {
+    case "NotAllowedError":
+      return "Access is blocked. Allow it in your browser's site settings.";
+    case "NotFoundError":
+      return `No ${device} found.`;
+    case "NotReadableError":
+      return `Your ${device} is being used by another app.`;
+    default:
+      return `Couldn't open your ${device}.`;
   }
 };
+
+/** Opens one device. On failure `track` is null and `error` says why: a device never ends a call. */
+const openTrack = async (kind: DeviceKind): Promise<{ track: MediaStreamTrack | null; error: string | null }> => {
+  // Browsers only expose mediaDevices on HTTPS and localhost.
+  if (!navigator.mediaDevices) return { track: null, error: "Calls need HTTPS or localhost for camera and microphone." };
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ [kind]: true });
+    return { track: stream.getTracks()[0] ?? null, error: null };
+  } catch (e) {
+    return { track: null, error: deviceMessage(kind, (e as DOMException).name) };
+  }
+};
+/** `crypto.randomUUID` is also missing without HTTPS, and that must not stop a call from starting. */
+const newCallId = () =>
+  crypto.randomUUID?.() ??
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
 const stopTracks = (stream: MediaStream | null) => stream?.getTracks().forEach((t) => t.stop());
 const replaceTrack = (slot: RTCRtpTransceiver | null, track: MediaStreamTrack | null) =>
   slot?.sender.replaceTrack(track).catch(() => {});
@@ -167,14 +190,36 @@ export function useWebRtcCall(userId: number | null) {
     const openMic = async (s: Session) => {
       if (s.micPending) return;
       s.micPending = true;
-      const track = await openTrack("audio");
+      const { track, error } = await openTrack("audio");
       s.micPending = false;
-      if (!track) return;
-      if (session !== s) return track.stop(); // the call ended while waiting for the mic
+      if (session !== s) return track?.stop(); // the call ended while waiting for the mic
+      if (!track) return set({ deviceError: error });
+      track.onended = () => {
+        if (session === s && s.mic === track) closeMic(s);
+      };
       s.mic = track;
       s.local.addTrack(track);
       replaceTrack(s.audio, track);
-      set({ micOn: true });
+      set({ micOn: true, deviceError: null });
+      sendMediaState(s);
+    };
+
+    /** The mic went away on its own, for example it was unplugged. */
+    const closeMic = (s: Session) => {
+      s.local.removeTrack(s.mic!);
+      s.mic = null;
+      replaceTrack(s.audio, null);
+      set({ micOn: false, deviceError: deviceMessage("audio", "NotFoundError") });
+      sendMediaState(s);
+    };
+
+    /** Stopping the track releases the device (its light goes out). A shared screen keeps its slot. */
+    const closeCamera = (s: Session, deviceError: string | null) => {
+      s.camera!.stop();
+      s.local.removeTrack(s.camera!);
+      s.camera = null;
+      replaceTrack(s.video, videoTrack(s));
+      set({ cameraOn: false, deviceError });
       sendMediaState(s);
     };
 
@@ -187,30 +232,26 @@ export function useWebRtcCall(userId: number | null) {
         return;
       }
       s.mic.enabled = !s.mic.enabled;
-      set({ micOn: s.mic.enabled });
+      set({ micOn: s.mic.enabled, deviceError: null });
       sendMediaState(s);
     };
 
-    /** Turning the camera off stops the track, so the device is released (its light goes out). */
     const toggleCamera = async () => {
       const s = session;
       if (!s || s.cameraPending) return;
-      if (s.camera) {
-        s.camera.stop();
-        s.local.removeTrack(s.camera);
-        s.camera = null;
-        set({ cameraOn: false });
-      } else {
-        s.cameraPending = true;
-        const track = await openTrack("video");
-        s.cameraPending = false;
-        if (!track) return;
-        if (session !== s) return track.stop(); // the call ended while waiting for the camera
-        s.camera = track;
-        s.local.addTrack(track);
-        set({ cameraOn: true });
-      }
-      replaceTrack(s.video, videoTrack(s)); // a shared screen keeps its slot
+      if (s.camera) return closeCamera(s, null);
+      s.cameraPending = true;
+      const { track, error } = await openTrack("video");
+      s.cameraPending = false;
+      if (session !== s) return track?.stop(); // the call ended while waiting for the camera
+      if (!track) return set({ deviceError: error });
+      track.onended = () => {
+        if (session === s && s.camera === track) closeCamera(s, deviceMessage("video", "NotFoundError"));
+      };
+      s.camera = track;
+      s.local.addTrack(track);
+      set({ cameraOn: true, deviceError: null });
+      replaceTrack(s.video, videoTrack(s));
       sendMediaState(s);
     };
 
@@ -315,7 +356,7 @@ export function useWebRtcCall(userId: number | null) {
 
     const startCall = (channelId: number, peerUserId: number) => {
       if (session || !client.connected) return;
-      const s = newSession(crypto.randomUUID(), channelId, peerUserId, "caller");
+      const s = newSession(newCallId(), channelId, peerUserId, "caller");
       session = s;
       clearTimeout(resetTimer);
       set({ ...idleCall, status: "calling", callId: s.callId, channelId, peerUserId, localStream: s.local });

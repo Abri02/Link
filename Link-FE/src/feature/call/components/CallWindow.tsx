@@ -73,6 +73,7 @@ function ActiveCallWindow() {
   const cameraOn = useCallStore((s) => s.cameraOn);
   const peerMicOn = useCallStore((s) => s.peerMicOn);
   const peerCameraOn = useCallStore((s) => s.peerCameraOn);
+  const deviceError = useCallStore((s) => s.deviceError);
 
   const statusText =
     status === "calling" ? `Calling ${peerName}…` : status === "ended" ? END_TEXT[endReason ?? "hangup"] : peerName;
@@ -153,6 +154,12 @@ function ActiveCallWindow() {
         <Box px="3.5" py="2.5" bg="bg.panel">
           <UpsellNotice workspaceId={workspaceId} message="Upgrade this workspace to make video calls." />
         </Box>
+      )}
+
+      {live && deviceError && (
+        <Text role="alert" px="3.5" pt="2.5" textStyle="caption" color="overlay.danger">
+          {deviceError}
+        </Text>
       )}
 
       <HStack w="full" px="3.5" py="2.5" gap="2">
