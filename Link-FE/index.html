@@ -1,7 +1,22 @@
 <!doctype html>
-<html lang="en" data-theme="graphite" class="dark">
+<html lang="en" data-theme="paper" class="light">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Applies the saved theme before first paint. Keep the list in sync with src/theme/themeStore.ts.
+      (function () {
+        var modes = { paper: "light", harbor: "light", graphite: "dark", forest: "dark" };
+        var saved = null;
+        try {
+          saved = localStorage.getItem("link-theme");
+        } catch (e) {
+          // Storage blocked: use the default.
+        }
+        var theme = Object.prototype.hasOwnProperty.call(modes, saved) ? saved : "paper";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.className = modes[theme];
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Link</title>
