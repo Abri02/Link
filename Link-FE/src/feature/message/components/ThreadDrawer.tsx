@@ -6,6 +6,7 @@ import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembe
 import { IconAction } from "@/components/ui/IconAction";
 import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
 import { isPlanLimitError } from "@/util/apiClient";
+import { scrollMotion } from "@/util/motion";
 import { useThreadMessages } from "../hooks/useThreadMessages";
 import { useThreadSocket } from "../hooks/useThreadSocket";
 import { MessageRow } from "./MessageRow";
@@ -25,7 +26,7 @@ export function ThreadDrawer() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: scrollMotion() });
   }, [replies]);
 
   const parentMessage = channelMessages?.find((m) => m.id === threadMessageId);
@@ -38,7 +39,7 @@ export function ThreadDrawer() {
           borderLeftWidth="1px"
           borderColor="border"
           w="360px"
-          maxW="360px"
+          maxW="100vw"
           display="flex"
           flexDirection="column"
         >

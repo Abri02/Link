@@ -1,4 +1,5 @@
-import { HStack } from "@chakra-ui/react";
+import { Flex, HStack } from "@chakra-ui/react";
+import { useWorkspaceStore } from "../stores/workspaceStore";
 import { WorkspaceSidebar } from "../components/WorkspaceSidebar";
 import { ChannelSidebar } from "@/feature/channel/components/ChannelSidebar";
 import { MessageArea } from "@/feature/message/components/MessageArea";
@@ -15,13 +16,28 @@ export function WorkspacePage() {
   useNotificationSocket(userId);
   useConversationSocket(userId);
   useWebRtcCall(userId);
+  // Below md there's only room for one pane: the sidebars, or the open conversation.
+  const conversationOpen = useWorkspaceStore((s) => s.selectedChannelId != null);
 
   return (
     <>
       <HStack gap="0" h="100vh" overflow="hidden" bg="bg">
-        <WorkspaceSidebar />
-        <ChannelSidebar />
-        <MessageArea />
+        <Flex
+          display={{ base: conversationOpen ? "none" : "flex", md: "flex" }}
+          flex={{ base: "1", md: "none" }}
+          minW="0"
+        >
+          <WorkspaceSidebar />
+          <ChannelSidebar />
+        </Flex>
+        <Flex
+          display={{ base: conversationOpen ? "flex" : "none", md: "flex" }}
+          flex="1"
+          minW="0"
+          alignSelf="stretch"
+        >
+          <MessageArea />
+        </Flex>
       </HStack>
       <ThreadDrawer />
       <IncomingCallDialog />

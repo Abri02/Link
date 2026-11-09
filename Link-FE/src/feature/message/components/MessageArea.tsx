@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { VStack, HStack, Box, Center, Icon, Text } from "@chakra-ui/react";
-import { Hash, Lock, Search, X, Users, AtSign } from "lucide-react";
+import { VStack, HStack, Box, Icon, Text } from "@chakra-ui/react";
+import { ArrowLeft, Hash, Lock, Search, X, Users, AtSign } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { IconAction } from "@/components/ui/IconAction";
 import { BareInput, InputBox } from "@/components/ui/InputBox";
 import { useMessages } from "@/feature/message/hooks/useMessages";
@@ -10,6 +11,7 @@ import { useTypingIndicator, typingLabel } from "@/feature/message/hooks/useTypi
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useChannels } from "@/feature/channel/hooks/useChannels";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
+import { useWorkspaces } from "@/feature/workspace/hooks/useWorkspaces";
 import { useConversations } from "@/feature/channel/hooks/useConversations";
 import { ConversationMenu } from "@/feature/channel/components/ConversationMenu";
 import { ChannelMenu } from "@/feature/channel/components/ChannelMenu";
@@ -22,6 +24,8 @@ import { MessageComposer } from "./MessageComposer";
 export function MessageArea() {
   const selectedWorkspaceId = useWorkspaceStore((s) => s.selectedWorkspaceId);
   const selectedChannelId = useWorkspaceStore((s) => s.selectedChannelId);
+  const clearChannel = useWorkspaceStore((s) => s.clearChannel);
+  const { data: workspaces } = useWorkspaces();
   const { data: channels } = useChannels(selectedWorkspaceId);
   const { data: messages, isLoading } = useMessages(selectedChannelId);
   const { data: members } = useWorkspaceMembers(selectedWorkspaceId);
@@ -41,27 +45,24 @@ export function MessageArea() {
 
   if (!selectedWorkspaceId) {
     return (
-      <Center flex="1" bg="bg">
-        <Text textStyle="body" color="fg.muted">
-          Select a workspace to get started
-        </Text>
-      </Center>
+      <EmptyState>
+        {workspaces?.length === 0 ? "Create a workspace to get started" : "Select a workspace to get started"}
+      </EmptyState>
     );
   }
 
   if (!selectedChannelId) {
-    return (
-      <Center flex="1" bg="bg">
-        <Text textStyle="body" color="fg.muted">
-          Select a channel
-        </Text>
-      </Center>
-    );
+    return <EmptyState>Select a channel</EmptyState>;
   }
 
   return (
     <VStack flex="1" minW="0" bg="bg" gap="0" h="100vh">
       <HStack px="4" py="3" borderBottomWidth="1px" borderColor="border" w="full" gap="2" flexShrink={0}>
+        <Box hideFrom="md">
+          <IconAction label="Back to channels" onClick={clearChannel}>
+            <ArrowLeft size={14} />
+          </IconAction>
+        </Box>
         <Icon as={HeaderIcon} boxSize="4" color="fg.muted" />
         <Text textStyle="title" color="fg" flex="1" truncate>
           {title}
@@ -69,7 +70,7 @@ export function MessageArea() {
         {conversation && <CallButton conversation={conversation} />}
         {conversation && <ConversationMenu conversation={conversation} />}
         {channel && <ChannelMenu channel={channel} />}
-        <InputBox w="52" py="0" px="2">
+        <InputBox w={{ base: "32", md: "52" }} py="0" px="2">
           <Icon as={Search} boxSize="3.5" color="fg.muted" flexShrink={0} />
           <BareInput
             placeholder="Search messages…"
@@ -91,7 +92,7 @@ export function MessageArea() {
               {searchLoading ? "Searching…" : `${searchResults?.length ?? 0} result${searchResults?.length === 1 ? "" : "s"} for "${searchQuery}"`}
             </Text>
           </Box>
-          <MessageList messages={searchResults} isLoading={searchLoading} members={members ?? []} />
+          <MessageList messages={searchResults} isLoading={searchLoading} members={members ?? []} isSearch />
         </VStack>
       ) : (
         <MessageList messages={messages} isLoading={isLoading} members={members ?? []} />
