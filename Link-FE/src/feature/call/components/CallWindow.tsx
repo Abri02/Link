@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Center, chakra, HStack, Text, VStack } from "@chakra-ui/react";
-import { Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Expand, Maximize, Mic, MicOff, Minimize, MonitorOff, MonitorUp, PhoneOff, Shrink, Video, VideoOff } from "lucide-react";
 import { Tip } from "@/components/Tip";
 import { callControlRecipe, callWindowRecipe } from "@/theme/recipes";
 import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
@@ -21,6 +21,9 @@ const END_TEXT: Record<CallEndReason, string> = {
 
 const CallPanel = chakra("div", callWindowRecipe);
 const CallControl = chakra("button", callControlRecipe);
+
+const SMALL_PANEL = { right: "6", bottom: "6", w: "420px", maxW: "calc(100vw - 32px)" } as const;
+const EXPANDED_PANEL = { inset: { base: "0", md: "4" }, display: "flex", flexDirection: "column" } as const;
 
 function StreamVideo({
   stream,
@@ -53,9 +56,11 @@ function StreamVideo({
 export function CallWindow() {
   const status = useCallStore((s) => s.status);
   const endReason = useCallStore((s) => s.endReason);
+  const callId = useCallStore((s) => s.callId);
   // We declined from the incoming dialog: there was never a call window.
   if (status === "idle" || status === "ringing" || (status === "ended" && endReason === "declined")) return null;
-  return <ActiveCallWindow />;
+  // Keyed so every call starts small, even one placed while the last call's end text is showing.
+  return <ActiveCallWindow key={callId} />;
 }
 
 function ActiveCallWindow() {
@@ -81,18 +86,48 @@ function ActiveCallWindow() {
   const sharing = screenStream != null;
   const canShare = status === "connected" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const big = live && (expanded || fullscreen);
+
+  // Follows the browser, because Esc leaves fullscreen without going through our button.
+  useEffect(() => {
+    const onChange = () => setFullscreen(panelRef.current != null && document.fullscreenElement === panelRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // The controls are gone once the call ends, so don't leave the user stuck in fullscreen.
+  useEffect(() => {
+    if (!live && panelRef.current && document.fullscreenElement === panelRef.current) {
+      void document.exitFullscreen().catch(() => {});
+    }
+  }, [live]);
+
+  const toggleFullscreen = () => {
+    if (fullscreen) void document.exitFullscreen().catch(() => {});
+    else void panelRef.current?.requestFullscreen().catch(() => {});
+  };
+
   return (
     <CallPanel
+      ref={panelRef}
       role="region"
       aria-label="Call"
       position="fixed"
-      right="6"
-      bottom="6"
       zIndex={1400}
-      w="420px"
-      maxW="calc(100vw - 32px)"
+      {...(big ? EXPANDED_PANEL : SMALL_PANEL)}
     >
-      <Box position="relative" w="full" aspectRatio={4 / 3} bg="overlay.video">
+      {/* The same elements in every size: remounting the remote <video> would interrupt the audio. */}
+      <Box
+        position="relative"
+        w="full"
+        flex={big ? "1" : undefined}
+        minH="0"
+        aspectRatio={big ? undefined : 4 / 3}
+        bg="overlay.video"
+      >
         {/* "contain" so a shared screen isn't cropped. */}
         {status === "connected" && <StreamVideo stream={remoteStream} label="Remote video" fit="contain" />}
         {/* Covers the video rather than replacing it: the <video> also plays the remote audio. */}
@@ -136,7 +171,7 @@ function ActiveCallWindow() {
             position="absolute"
             right="2.5"
             bottom="2.5"
-            w="32"
+            w={big ? { base: "32", md: "64" } : "32"}
             aspectRatio={4 / 3}
             bg="overlay.video"
             borderWidth="1px"
@@ -195,6 +230,30 @@ function ActiveCallWindow() {
                   onClick={() => controls?.toggleScreenShare()}
                 >
                   {sharing ? <MonitorOff size={16} /> : <MonitorUp size={16} />}
+                </CallControl>
+              </Tip>
+            )}
+            {!fullscreen && (
+              <Tip label={expanded ? "Shrink" : "Expand"} placement="top">
+                <CallControl
+                  aria-label="Expand"
+                  aria-pressed={expanded}
+                  tone={expanded ? "active" : undefined}
+                  onClick={() => setExpanded(!expanded)}
+                >
+                  {expanded ? <Shrink size={16} /> : <Expand size={16} />}
+                </CallControl>
+              </Tip>
+            )}
+            {document.fullscreenEnabled && (
+              <Tip label={fullscreen ? "Exit fullscreen" : "Fullscreen"} placement="top">
+                <CallControl
+                  aria-label="Fullscreen"
+                  aria-pressed={fullscreen}
+                  tone={fullscreen ? "active" : undefined}
+                  onClick={toggleFullscreen}
+                >
+                  {fullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                 </CallControl>
               </Tip>
             )}
