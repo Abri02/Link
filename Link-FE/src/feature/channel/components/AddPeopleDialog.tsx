@@ -1,5 +1,6 @@
 import { Box, Button, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { FormError } from "@/components/ui/FormError";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { useAddConversationMembers } from "../hooks/useConversationActions";
@@ -35,29 +36,15 @@ export function AddPeopleDialog({ conversation, onClose }: Props) {
   };
 
   return (
-    <Box as="form" onSubmit={handleSubmit} display="flex" flexDirection="column" gap="16px">
+    <Box as="form" onSubmit={handleSubmit} display="flex" flexDirection="column" gap="4">
       {conversation.kind === "DM" && (
-        <Text color="rgba(244,244,246,0.5)" fontSize="12px">
+        <Text color="fg.muted" textStyle="caption">
           This starts a new group conversation. The history stays in this DM.
         </Text>
       )}
       <MemberPicker users={candidates} selected={selected} onChange={setSelected} max={room} />
-      {error && (
-        <Text color="#FF6B6B" fontSize="12px" role="alert">
-          {error.message}
-        </Text>
-      )}
-      <Button
-        type="submit"
-        loading={isPending}
-        disabled={selected.length === 0}
-        bg="#6C63FF"
-        color="white"
-        _hover={{ bg: "#5B52E0" }}
-        borderRadius="8px"
-        h="36px"
-        fontSize="13px"
-      >
+      {error && <FormError>{error.message}</FormError>}
+      <Button type="submit" loading={isPending} disabled={selected.length === 0}>
         Add people
       </Button>
     </Box>

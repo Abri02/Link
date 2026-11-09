@@ -1,6 +1,9 @@
-import { Box, Button, HStack, IconButton, NativeSelect, Spinner, Text, VStack } from "@chakra-ui/react";
+import { Box, Button, NativeSelect, Spinner, Text, VStack } from "@chakra-ui/react";
 import { X } from "lucide-react";
 import { useState } from "react";
+import { FormError } from "@/components/ui/FormError";
+import { IconAction } from "@/components/ui/IconAction";
+import { ListRow } from "@/components/ui/ListRow";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
 import { useAddChannelMember, useChannelMembers, useRemoveChannelMember } from "../hooks/useChannelMembership";
 import type { Channel } from "../api/channel.types";
@@ -24,33 +27,26 @@ export function ChannelMembersDialog({ channel, canManage, currentUserId }: Prop
   const error = add.error ?? remove.error;
 
   return (
-    <VStack alignItems="stretch" gap="12px">
-      {isLoading && <Spinner size="sm" color="#6C63FF" />}
-      <VStack alignItems="stretch" gap="2px" maxH="240px" overflow="auto" aria-label="Channel members">
+    <VStack alignItems="stretch" gap="3">
+      {isLoading && <Spinner size="sm" color="brand.solid" />}
+      <VStack alignItems="stretch" gap="0.5" maxH="60" overflow="auto" aria-label="Channel members">
         {members?.map((m) => (
-          <HStack key={m.userId} px="6px" py="4px" borderRadius="6px" _hover={{ bg: "rgba(255,255,255,0.04)" }}>
-            <Text color="#F4F4F6" fontSize="13px" flex="1" truncate>
+          <ListRow key={m.userId}>
+            <Text flex="1" truncate>
               {m.username}
               {m.userId === currentUserId && (
-                <Text as="span" color="rgba(244,244,246,0.4)">
+                <Text as="span" color="fg.muted">
                   {" "}
                   (you)
                 </Text>
               )}
             </Text>
             {canManage && m.userId !== currentUserId && (
-              <IconButton
-                size="2xs"
-                variant="ghost"
-                color="rgba(244,244,246,0.4)"
-                _hover={{ color: "#FF6B6B", bg: "transparent" }}
-                aria-label={`Remove ${m.username} from channel`}
-                onClick={() => remove.mutate(m.userId)}
-              >
+              <IconAction label={`Remove ${m.username} from channel`} onClick={() => remove.mutate(m.userId)}>
                 <X size={12} />
-              </IconButton>
+              </IconAction>
             )}
-          </HStack>
+          </ListRow>
         ))}
       </VStack>
 
@@ -58,7 +54,7 @@ export function ChannelMembersDialog({ channel, canManage, currentUserId }: Prop
         <Box
           as="form"
           display="flex"
-          gap="8px"
+          gap="2"
           onSubmit={(e: React.FormEvent) => {
             e.preventDefault();
             if (!picked) return;
@@ -66,43 +62,23 @@ export function ChannelMembersDialog({ channel, canManage, currentUserId }: Prop
           }}
         >
           <NativeSelect.Root size="sm" flex="1">
-            <NativeSelect.Field
-              aria-label="Person to add"
-              value={picked}
-              onChange={(e) => setPicked(e.target.value)}
-              bg="#1C1C2E"
-              border="1px solid #2E2E50"
-              color="#F4F4F6"
-            >
-              <option value="" style={{ background: "#1C1C30" }}>Add someone…</option>
+            <NativeSelect.Field aria-label="Person to add" value={picked} onChange={(e) => setPicked(e.target.value)}>
+              <option value="">Add someone…</option>
               {candidates.map((m) => (
-                <option key={m.userId} value={m.userId} style={{ background: "#1C1C30" }}>
+                <option key={m.userId} value={m.userId}>
                   {m.username}
                 </option>
               ))}
             </NativeSelect.Field>
             <NativeSelect.Indicator />
           </NativeSelect.Root>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!picked}
-            loading={add.isPending}
-            bg="#6C63FF"
-            color="white"
-            _hover={{ bg: "#5B52E0" }}
-            borderRadius="6px"
-          >
+          <Button type="submit" disabled={!picked} loading={add.isPending}>
             Add
           </Button>
         </Box>
       )}
 
-      {error && (
-        <Text color="#FF6B6B" fontSize="12px" role="alert">
-          {error.message}
-        </Text>
-      )}
+      {error && <FormError>{error.message}</FormError>}
     </VStack>
   );
 }

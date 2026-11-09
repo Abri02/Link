@@ -7,6 +7,7 @@ const link = (name: string) => ({ value: `var(--link-${name})` });
 const config = defineConfig({
   globalCss: {
     html: { colorPalette: "brand" },
+    "input[type=checkbox]": { accentColor: "brand.solid" },
   },
   theme: {
     textStyles,
