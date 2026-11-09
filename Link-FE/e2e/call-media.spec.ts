@@ -264,7 +264,8 @@ test.describe("Call media controls", () => {
     expect(await fullscreenLabel()).toBe("Call");
     // Tooltips must render inside the fullscreen element, or they couldn't be seen.
     await fullscreen.hover();
-    await expect(a.getByRole("region", { name: "Call" }).getByRole("tooltip")).toHaveText("Exit fullscreen");
+    // By text, because the tooltip of the button we just left may still be closing.
+    await expect(a.getByRole("region", { name: "Call" }).getByRole("tooltip").filter({ hasText: "Exit fullscreen" })).toBeVisible();
     // The same path as pressing Esc: the browser leaves fullscreen without our button.
     await a.evaluate(() => document.exitFullscreen());
     await expect(fullscreen).toHaveAttribute("aria-pressed", "false");
