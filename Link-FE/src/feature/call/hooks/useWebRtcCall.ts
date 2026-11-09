@@ -1,7 +1,7 @@
 import { Client } from "@stomp/stompjs";
 import { useEffect } from "react";
 import { WS_URL } from "@/util/constants";
-import type { CallEndReason, CallSignal, CallSignalType } from "../api/call.types";
+import type { CallEndReason, CallSignal, CallSignalType, MediaState } from "../api/call.types";
 import { idleCall, useCallStore } from "../stores/callStore";
 
 const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
@@ -38,6 +38,9 @@ interface Session {
   /** Remote ICE candidates that arrived before the remote description was set. */
   pendingIce: RTCIceCandidateInit[];
   remoteSet: boolean;
+  /** Last MEDIA_STATE number we sent, and the highest one we received from the peer. */
+  mediaSeq: number;
+  peerMediaSeq: number;
   timer?: ReturnType<typeof setTimeout>;
 }
 
@@ -45,6 +48,7 @@ const newSession = (callId: string, channelId: number, peerUserId: number, role:
   callId, channelId, peerUserId, role, accepted: false,
   local: new MediaStream(), remote: new MediaStream(), mic: null, camera: null, micPending: false, cameraPending: false,
   screen: null, pc: null, audio: null, video: null, pendingIce: [], remoteSet: false,
+  mediaSeq: 0, peerMediaSeq: 0,
 });
 
 /** Opens one device. Null if it can't be opened for any reason: a device never ends a call. */
@@ -147,6 +151,13 @@ export function useWebRtcCall(userId: number | null) {
 
     const videoTrack = (s: Session) => s.screen?.getVideoTracks()[0] ?? s.camera;
 
+    /** Tells the peer what we have on. Nothing to tell until both sides are in the call. */
+    const sendMediaState = (s: Session) => {
+      if (!s.accepted) return;
+      const state: MediaState = { mic: s.mic?.enabled ?? false, camera: videoTrack(s) != null, seq: ++s.mediaSeq };
+      send(s, "MEDIA_STATE", state);
+    };
+
     /** Puts the current devices into the slots, once those exist. */
     const attachTracks = (s: Session) => {
       replaceTrack(s.audio, s.mic);
@@ -164,6 +175,7 @@ export function useWebRtcCall(userId: number | null) {
       s.local.addTrack(track);
       replaceTrack(s.audio, track);
       set({ micOn: true });
+      sendMediaState(s);
     };
 
     /** Muting keeps the track, so unmuting is instant. With no track yet, it asks for the mic again. */
@@ -176,6 +188,7 @@ export function useWebRtcCall(userId: number | null) {
       }
       s.mic.enabled = !s.mic.enabled;
       set({ micOn: s.mic.enabled });
+      sendMediaState(s);
     };
 
     /** Turning the camera off stops the track, so the device is released (its light goes out). */
@@ -198,6 +211,7 @@ export function useWebRtcCall(userId: number | null) {
         set({ cameraOn: true });
       }
       replaceTrack(s.video, videoTrack(s)); // a shared screen keeps its slot
+      sendMediaState(s);
     };
 
     const applyRemote = async (s: Session, desc: RTCSessionDescriptionInit) => {
@@ -240,6 +254,7 @@ export function useWebRtcCall(userId: number | null) {
           s.accepted = true;
           clearTimeout(s.timer);
           set({ status: "connected" });
+          sendMediaState(s);
           const pc = createPeer(s);
           s.audio = pc.addTransceiver("audio", { direction: "sendrecv" });
           s.video = pc.addTransceiver("video", { direction: "sendrecv" });
@@ -279,6 +294,13 @@ export function useWebRtcCall(userId: number | null) {
           else s.pendingIce.push(candidate);
           return;
         }
+        case "MEDIA_STATE": {
+          const state = sig.payload as MediaState | undefined;
+          if (!state || !(state.seq > s.peerMediaSeq)) return; // an older change arriving late
+          s.peerMediaSeq = state.seq;
+          set({ peerMicOn: state.mic === true, peerCameraOn: state.camera === true });
+          return;
+        }
         case "REJECT":
           end(s.role === "caller" ? "rejected" : "remote-hangup");
           return;
@@ -312,6 +334,7 @@ export function useWebRtcCall(userId: number | null) {
       createPeer(s);
       set({ status: "connected", localStream: s.local });
       send(s, "ACCEPT");
+      sendMediaState(s);
       void openMic(s);
     };
 
@@ -326,6 +349,7 @@ export function useWebRtcCall(userId: number | null) {
       stopTracks(screen);
       set({ screenStream: null });
       replaceTrack(s.video, videoTrack(s));
+      sendMediaState(s);
     };
 
     const toggleScreenShare = async () => {
@@ -348,6 +372,7 @@ export function useWebRtcCall(userId: number | null) {
       };
       set({ screenStream: screen });
       replaceTrack(s.video, track);
+      sendMediaState(s);
     };
 
     // Closing or reloading the tab hangs up, so the peer isn't left waiting.

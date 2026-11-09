@@ -269,6 +269,53 @@ class CallSignalControllerTest {
         verifyNotRelayed()
     }
 
+    // ── MEDIA_STATE ───────────────────────────────────────────────────
+
+    @Test
+    fun `MEDIA_STATE is relayed with its payload and does not touch the call record`() {
+        givenDm(ChannelKind.DM, caller, callee)
+
+        controller.signal(mediaState(), principal(caller))
+
+        verify(broker).convertAndSendToUser("2", "/queue/call", mediaState().copy(fromUserId = caller))
+        verify(calls, never()).save(any())
+    }
+
+    @Test
+    fun `MEDIA_STATE from a non-member of the DM is dropped`() {
+        given(channels.findById(dmId)).willReturn(Optional.of(channel(ChannelKind.DM)))
+        given(channelMembers.existsByChannelIdAndUserId(dmId, 3L)).willReturn(false)
+
+        controller.signal(mediaState(), principal(3L))
+
+        verifyNotRelayed()
+    }
+
+    @Test
+    fun `MEDIA_STATE without a running call is dropped on the FREE plan`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+        given(calls.findByCallId("c1")).willReturn(null)
+
+        controller.signal(mediaState(), principal(caller))
+
+        verifyNotRelayed()
+    }
+
+    @Test
+    fun `MEDIA_STATE for a running call is relayed on the FREE plan`() {
+        givenDm(ChannelKind.DM, caller, callee, WorkspacePlan.FREE)
+        given(calls.findByCallId("c1")).willReturn(Call("c1", dmId, caller, callee))
+
+        controller.signal(mediaState(), principal(caller))
+
+        verify(broker).convertAndSendToUser("2", "/queue/call", mediaState().copy(fromUserId = caller))
+    }
+
+    private fun mediaState() = CallSignal(
+        CallSignalType.MEDIA_STATE, "c1", toUserId = callee, channelId = dmId,
+        payload = mapOf("mic" to true, "camera" to false, "seq" to 1)
+    )
+
     private fun offer() = CallSignal(CallSignalType.OFFER, "c1", toUserId = callee, channelId = dmId)
 
     private fun givenDm(kind: ChannelKind, from: Long, to: Long, plan: WorkspacePlan = WorkspacePlan.PREMIUM) {

@@ -30,6 +30,9 @@ interface CallState {
   /** True only while the device is open and live. A device that failed stays off. */
   micOn: boolean;
   cameraOn: boolean;
+  /** What the peer last told us it has on. `peerCameraOn` is also true while it shares a screen. */
+  peerMicOn: boolean;
+  peerCameraOn: boolean;
   endReason: CallEndReason | null;
   controls: CallControls | null;
 }
@@ -44,6 +47,8 @@ export const idleCall = {
   screenStream: null,
   micOn: false,
   cameraOn: false,
+  peerMicOn: false,
+  peerCameraOn: false,
   endReason: null,
 } satisfies Omit<CallState, "controls">;
 
