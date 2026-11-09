@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { VStack, HStack, Box, Text, Input, IconButton } from "@chakra-ui/react";
+import { VStack, HStack, Box, Center, Icon, Text } from "@chakra-ui/react";
 import { Hash, Lock, Search, X, Users, AtSign } from "lucide-react";
+import { IconAction } from "@/components/ui/IconAction";
+import { BareInput, InputBox } from "@/components/ui/InputBox";
 import { useMessages } from "@/feature/message/hooks/useMessages";
 import { useMessageSearch } from "@/feature/message/hooks/useMessageSearch";
 import { useChannelSocket } from "@/feature/message/hooks/useChannelSocket";
@@ -39,72 +41,53 @@ export function MessageArea() {
 
   if (!selectedWorkspaceId) {
     return (
-      <Box flex="1" display="flex" alignItems="center" justifyContent="center" bg="#1C1C2E">
-        <Text color="rgba(244,244,246,0.3)" fontSize="15px">
+      <Center flex="1" bg="bg">
+        <Text textStyle="body" color="fg.muted">
           Select a workspace to get started
         </Text>
-      </Box>
+      </Center>
     );
   }
 
   if (!selectedChannelId) {
     return (
-      <Box flex="1" display="flex" alignItems="center" justifyContent="center" bg="#1C1C2E">
-        <Text color="rgba(244,244,246,0.3)" fontSize="15px">
+      <Center flex="1" bg="bg">
+        <Text textStyle="body" color="fg.muted">
           Select a channel
         </Text>
-      </Box>
+      </Center>
     );
   }
 
   return (
-    <VStack flex="1" minW="0" bg="#1C1C2E" gap="0" h="100vh">
-      <HStack px="16px" py="12px" borderBottom="1px solid #2A2A45" w="full" gap="8px" flexShrink={0}>
-        <HeaderIcon size={16} color="rgba(244,244,246,0.5)" />
-        <Text color="#F4F4F6" fontWeight="600" fontSize="15px" flex="1" truncate>
+    <VStack flex="1" minW="0" bg="bg" gap="0" h="100vh">
+      <HStack px="4" py="3" borderBottomWidth="1px" borderColor="border" w="full" gap="2" flexShrink={0}>
+        <Icon as={HeaderIcon} boxSize="4" color="fg.muted" />
+        <Text textStyle="title" color="fg" flex="1" truncate>
           {title}
         </Text>
         {conversation && <CallButton conversation={conversation} />}
         {conversation && <ConversationMenu conversation={conversation} />}
         {channel && <ChannelMenu channel={channel} />}
-        <HStack gap="4px" w="200px">
-          <Search size={14} color="rgba(244,244,246,0.35)" />
-          <Input
+        <InputBox w="52" py="0" px="2">
+          <Icon as={Search} boxSize="3.5" color="fg.muted" flexShrink={0} />
+          <BareInput
             placeholder="Search messages…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            size="sm"
-            variant="flushed"
-            border="none"
-            outline="none"
-            boxShadow="none"
-            color="#F4F4F6"
-            fontSize="13px"
-            _placeholder={{ color: "rgba(244,244,246,0.35)" }}
-            _focusVisible={{ boxShadow: "none", borderColor: "transparent" }}
           />
           {searchQuery && (
-            <IconButton
-              size="xs"
-              variant="ghost"
-              aria-label="Clear search"
-              color="rgba(244,244,246,0.4)"
-              _hover={{ color: "#F4F4F6" }}
-              h="20px"
-              w="20px"
-              minW="0"
-              onClick={() => setSearchQuery("")}
-            >
+            <IconAction label="Clear search" onClick={() => setSearchQuery("")}>
               <X size={12} />
-            </IconButton>
+            </IconAction>
           )}
-        </HStack>
+        </InputBox>
       </HStack>
 
       {isSearching ? (
         <VStack flex="1" w="full" overflow="hidden">
-          <Box px="16px" py="6px" w="full" borderBottom="1px solid #2A2A45" flexShrink={0}>
-            <Text color="rgba(244,244,246,0.4)" fontSize="12px">
+          <Box px="4" py="1.5" w="full" borderBottomWidth="1px" borderColor="border" flexShrink={0}>
+            <Text textStyle="caption" color="fg.muted">
               {searchLoading ? "Searching…" : `${searchResults?.length ?? 0} result${searchResults?.length === 1 ? "" : "s"} for "${searchQuery}"`}
             </Text>
           </Box>
@@ -114,7 +97,7 @@ export function MessageArea() {
         <MessageList messages={messages} isLoading={isLoading} members={members ?? []} />
       )}
 
-      <Box w="full" borderTop="1px solid #2A2A45" flexShrink={0}>
+      <Box w="full" borderTopWidth="1px" borderColor="border" flexShrink={0}>
         <MessageComposer
           channelId={selectedChannelId}
           channelName={channel?.name ?? ""}
@@ -123,13 +106,13 @@ export function MessageArea() {
         />
         <Text
           data-testid="typing-indicator"
-          px="16px"
-          pb="6px"
-          mt="-6px"
-          h="18px"
-          fontSize="12px"
+          px="4"
+          pb="1.5"
+          mt="-1.5"
+          minH="6"
+          textStyle="caption"
           fontStyle="italic"
-          color="rgba(244,244,246,0.45)"
+          color="fg.muted"
           truncate
         >
           {typingLabel(typingUsers)}

@@ -1,8 +1,9 @@
-import { Box, VStack, HStack, Text, IconButton, Spinner, Drawer } from "@chakra-ui/react";
+import { Box, Center, Icon, VStack, HStack, Text, Spinner, Drawer } from "@chakra-ui/react";
 import { X, MessageSquare } from "lucide-react";
 import { useRef, useEffect } from "react";
 import { useWorkspaceStore } from "@/feature/workspace/stores/workspaceStore";
 import { useWorkspaceMembers } from "@/feature/workspace/hooks/useWorkspaceMembers";
+import { IconAction } from "@/components/ui/IconAction";
 import { UpsellNotice } from "@/feature/billing/components/UpsellNotice";
 import { isPlanLimitError } from "@/util/apiClient";
 import { useThreadMessages } from "../hooks/useThreadMessages";
@@ -31,39 +32,29 @@ export function ThreadDrawer() {
 
   return (
     <Drawer.Root open={threadMessageId != null} onOpenChange={(e) => { if (!e.open) closeThread(); }} placement="end">
-      <Drawer.Backdrop />
+      <Drawer.Backdrop bg="overlay" />
       <Drawer.Positioner>
         <Drawer.Content
-          bg="#1A1A2E"
-          borderLeft="1px solid #2A2A45"
+          borderLeftWidth="1px"
+          borderColor="border"
           w="360px"
           maxW="360px"
           display="flex"
           flexDirection="column"
         >
-          <HStack px="16px" py="12px" borderBottom="1px solid #2A2A45" flexShrink={0}>
-            <MessageSquare size={15} color="rgba(244,244,246,0.5)" />
-            <Text color="#F4F4F6" fontWeight="600" fontSize="15px" flex="1">
+          <HStack px="4" py="3" borderBottomWidth="1px" borderColor="border" flexShrink={0}>
+            <Icon as={MessageSquare} boxSize="4" color="fg.muted" />
+            <Text textStyle="title" color="fg" flex="1">
               Thread
             </Text>
-            <IconButton
-              size="xs"
-              variant="ghost"
-              color="rgba(244,244,246,0.4)"
-              _hover={{ color: "#F4F4F6" }}
-              aria-label="Close thread"
-              onClick={closeThread}
-              h="24px"
-              w="24px"
-              minW="0"
-            >
+            <IconAction label="Close thread" onClick={closeThread}>
               <X size={14} />
-            </IconButton>
+            </IconAction>
           </HStack>
 
-          <Box flex="1" overflowY="auto" py="8px">
+          <Box flex="1" overflowY="auto" py="2">
             {parentMessage && (
-              <Box borderBottom="1px solid #2A2A45" pb="8px" mb="8px">
+              <Box borderBottomWidth="1px" borderColor="border" pb="2" mb="2">
                 <MessageRow
                   message={parentMessage}
                   authorUsername={members?.find((m) => m.userId === parentMessage.authorId)?.username ?? `User ${parentMessage.authorId}`}
@@ -72,19 +63,19 @@ export function ThreadDrawer() {
             )}
 
             {isLoading && (
-              <Box display="flex" justifyContent="center" pt="16px">
-                <Spinner size="sm" color="#6C63FF" />
-              </Box>
+              <Center pt="4">
+                <Spinner size="sm" color="brand.solid" />
+              </Center>
             )}
 
             {isPlanLimitError(error) && (
-              <Box px="16px" pt="16px">
+              <Box px="4" pt="4">
                 <UpsellNotice workspaceId={selectedWorkspaceId} message={error.message} />
               </Box>
             )}
 
             {!isLoading && replies?.length === 0 && (
-              <Text color="rgba(244,244,246,0.3)" fontSize="13px" textAlign="center" pt="16px">
+              <Text textStyle="label" color="fg.muted" textAlign="center" pt="4">
                 No replies yet.
               </Text>
             )}
@@ -103,7 +94,7 @@ export function ThreadDrawer() {
           </Box>
 
           {selectedChannelId != null && threadMessageId != null && (
-            <Box borderTop="1px solid #2A2A45" flexShrink={0}>
+            <Box borderTopWidth="1px" borderColor="border" flexShrink={0}>
               <MessageComposer
                 channelId={selectedChannelId}
                 channelName="thread"
