@@ -1,5 +1,6 @@
-import { Text } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
+import { Link } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
+import { FormError } from "@/components/ui/FormError";
 
 interface Props {
   workspaceId: number | null;
@@ -9,16 +10,16 @@ interface Props {
 /** Shown when a Free plan limit is hit: the reason, plus a link to the pricing page. */
 export function UpsellNotice({ workspaceId, message }: Props) {
   return (
-    <Text color="#FF6B6B" fontSize="12px" role="alert">
+    <FormError>
       {message}
       {workspaceId != null && (
         <>
           {" "}
-          <Link to={`/pricing?workspaceId=${workspaceId}`} style={{ color: "#A8A3FF", textDecoration: "underline" }}>
-            See Premium
+          <Link asChild variant="underline">
+            <RouterLink to={`/pricing?workspaceId=${workspaceId}`}>See Premium</RouterLink>
           </Link>
         </>
       )}
-    </Text>
+    </FormError>
   );
 }

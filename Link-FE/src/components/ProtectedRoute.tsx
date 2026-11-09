@@ -10,7 +10,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { data, isLoading, error } = useMe();
 
   if (isLoading) {
-    return <Box minH="100vh" bg="#1C1C2E" />;
+    return <Box minH="100vh" bg="bg" />;
   }
 
   if (error || !data) {

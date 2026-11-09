@@ -20,4 +20,22 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Colours live in src/theme/. Keeps hardcoded values from coming back.
+    files: ['src/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          'Literal[value=/#[0-9a-fA-F]{6}\\b/]',
+          'Literal[value=/rgba?\\(/]',
+          'TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]',
+          'TemplateElement[value.raw=/rgba?\\(/]',
+        ].map((selector) => ({
+          selector,
+          message: 'Hardcoded colour: use a semantic token from src/theme/.',
+        })),
+      ],
+    },
+  },
 ])

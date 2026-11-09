@@ -135,6 +135,41 @@ export const listRowRecipe = defineRecipe({
   },
 });
 
+export const callWindowRecipe = defineRecipe({
+  base: {
+    bg: "overlay.panel",
+    color: "overlay.fg",
+    borderWidth: "1px",
+    borderColor: "overlay.border",
+    borderRadius: "l2",
+    boxShadow: "lg",
+    overflow: "hidden",
+  },
+});
+
+export const callControlRecipe = defineRecipe({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    w: "8",
+    h: "8",
+    borderRadius: "l1",
+    color: "overlay.fg",
+    cursor: "pointer",
+    focusVisibleRing: "outside",
+    focusRingColor: "overlay.fg",
+    _hover: { bg: "overlay.hover" },
+  },
+  variants: {
+    tone: {
+      danger: { color: "overlay.danger" },
+      active: { color: "overlay.active" },
+      hangup: { bg: "overlay.hangup", _hover: { bg: "overlay.hangupHover" } },
+    },
+  },
+});
+
 export const navItemRecipe = defineRecipe({
   base: {
     display: "flex",
